@@ -1,0 +1,173 @@
+/* ============================================================
+   SISTEMA DE DISEÑO — Cotizaciones Mercado de Andamios
+   Paleta de construcción. Ajusta --acento para el naranja de marca.
+   ============================================================ */
+
+:root {
+  --acento:        #F58220;
+  --acento-oscuro: #D96E12;
+  --acento-claro:  #FF9A47;
+  --acento-suave:  #FFF1E3;
+  --carbon:        #16191D;
+  --carbon-2:      #1F242B;
+  --carbon-3:      #2A313A;
+  --hazard:        #F5C518;
+
+  --fondo:         #F1F3F5;
+  --superficie:    #FFFFFF;
+  --superficie-2:  #F9FAFB;
+
+  --texto:         #16191D;
+  --texto-medio:   #4B5563;
+  --texto-suave:   #8A94A1;
+
+  --borde:         #E4E7EB;
+  --borde-fuerte:  #CDD3DA;
+
+  --estatus-p: #F59E0B; --estatus-p-bg: #FEF3DC;
+  --estatus-a: #16A34A; --estatus-a-bg: #DCFCE7;
+  --estatus-r: #DC2626; --estatus-r-bg: #FEE2E2;
+  --estatus-v: #6B7280; --estatus-v-bg: #EEF0F2;
+
+  --display: 'Archivo', system-ui, sans-serif;
+  --cuerpo:  'Inter', system-ui, sans-serif;
+
+  --sombra-sm: 0 1px 2px rgba(16,24,40,.05);
+  --sombra:    0 1px 3px rgba(16,24,40,.08), 0 1px 2px rgba(16,24,40,.04);
+  --sombra-md: 0 6px 16px rgba(16,24,40,.10);
+  --sombra-lg: 0 16px 40px rgba(16,24,40,.16);
+
+  --radio-sm: 7px;
+  --radio:    12px;
+  --radio-lg: 18px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+body {
+  font-family: var(--cuerpo);
+  color: var(--texto);
+  background: var(--fondo);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+input, select, textarea { font-family: inherit; }
+h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Cinta de precaución (firma de marca) */
+.hazard-strip {
+  height: 5px;
+  background: repeating-linear-gradient(-45deg,
+    var(--hazard) 0, var(--hazard) 12px,
+    var(--carbon) 12px, var(--carbon) 24px);
+}
+
+/* ── Botones ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 18px; border: 1px solid transparent; border-radius: var(--radio-sm);
+  font-weight: 600; font-size: 14px;
+  transition: background .15s, border-color .15s, transform .04s, box-shadow .15s;
+  white-space: nowrap;
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primario { background: var(--acento); color: #fff; box-shadow: 0 2px 8px rgba(245,130,32,.30); }
+.btn-primario:hover:not(:disabled) { background: var(--acento-oscuro); box-shadow: 0 4px 12px rgba(245,130,32,.38); }
+.btn-secundario { background: var(--superficie); color: var(--texto); border-color: var(--borde-fuerte); }
+.btn-secundario:hover:not(:disabled) { background: var(--superficie-2); border-color: var(--texto-suave); }
+.btn-fantasma { background: transparent; color: var(--texto-medio); }
+.btn-fantasma:hover:not(:disabled) { background: var(--fondo); }
+.btn-peligro { background: var(--estatus-r); color: #fff; }
+.btn-peligro:hover:not(:disabled) { background: #b91c1c; }
+.btn-exito { background: var(--estatus-a); color: #fff; }
+.btn-exito:hover:not(:disabled) { background: #15803d; }
+.btn-carbon { background: var(--carbon); color: #fff; }
+.btn-carbon:hover:not(:disabled) { background: var(--carbon-2); }
+.btn-sm { padding: 7px 12px; font-size: 13px; }
+
+/* ── Inputs ──────────────────────────────────────────────── */
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label { font-size: 13px; font-weight: 600; color: var(--texto-medio); }
+.input, .select, .textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid var(--borde-fuerte); border-radius: var(--radio-sm);
+  font-size: 14px; color: var(--texto); background: var(--superficie);
+  transition: border-color .15s, box-shadow .15s;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; border-color: var(--acento);
+  box-shadow: 0 0 0 3px rgba(245,130,32,.15);
+}
+.textarea { resize: vertical; min-height: 80px; }
+
+/* ── Tarjetas ────────────────────────────────────────────── */
+.card { background: var(--superficie); border: 1px solid var(--borde); border-radius: var(--radio); box-shadow: var(--sombra); }
+.card-cuerpo { padding: 20px; }
+
+/* ── Badges ──────────────────────────────────────────────── */
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: .02em;
+}
+.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge-P { color: var(--estatus-p); background: var(--estatus-p-bg); }
+.badge-A { color: var(--estatus-a); background: var(--estatus-a-bg); }
+.badge-R { color: var(--estatus-r); background: var(--estatus-r-bg); }
+.badge-V { color: var(--estatus-v); background: var(--estatus-v-bg); }
+.badge-tipo {
+  display: inline-flex; padding: 2px 8px; border-radius: var(--radio-sm);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  border: 1px solid var(--borde-fuerte); color: var(--texto-medio);
+}
+.badge-tipo.R { color: var(--acento-oscuro); background: var(--acento-suave); border-color: transparent; }
+.badge-tipo.V { color: #2563eb; background: #dbeafe; border-color: transparent; }
+
+/* ── Tablas ──────────────────────────────────────────────── */
+.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabla thead th {
+  text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--texto-suave);
+  border-bottom: 1px solid var(--borde); background: var(--superficie-2);
+}
+.tabla tbody td { padding: 14px 16px; border-bottom: 1px solid var(--borde); color: var(--texto); }
+.tabla tbody tr { transition: background .12s; }
+.tabla tbody tr:hover { background: var(--superficie-2); cursor: pointer; }
+.tabla tbody tr:last-child td { border-bottom: none; }
+.tabla .der { text-align: right; }
+
+/* ── Utilidades ──────────────────────────────────────────── */
+.flex { display: flex; } .flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; } .justify-between { justify-content: space-between; }
+.gap-8 { gap: 8px; } .gap-12 { gap: 12px; } .gap-16 { gap: 16px; } .gap-24 { gap: 24px; }
+.mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+.w-full { width: 100%; }
+.texto-suave { color: var(--texto-suave); } .texto-medio { color: var(--texto-medio); }
+
+/* ── Spinner ─────────────────────────────────────────────── */
+.spinner { width: 20px; height: 20px; border: 2.5px solid rgba(245,130,32,.25); border-top-color: var(--acento); border-radius: 50%; animation: girar .7s linear infinite; }
+.spinner-centro { display: flex; justify-content: center; align-items: center; padding: 48px; }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ── Vacío ───────────────────────────────────────────────── */
+.vacio { text-align: center; padding: 56px 24px; color: var(--texto-suave); }
+.vacio h3 { font-size: 16px; color: var(--texto-medio); margin-bottom: 6px; }
+
+/* ── Toast ───────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 14px 18px; border-radius: var(--radio);
+  background: var(--carbon); color: #fff; font-size: 14px; font-weight: 500;
+  box-shadow: var(--sombra-lg); z-index: 1000; animation: subir .25s ease; max-width: 360px;
+}
+.toast.error { background: var(--estatus-r); }
+.toast.exito { background: var(--estatus-a); }
+@keyframes subir { from { opacity: 0; transform: translateY(8px); } }
+
+.login-error { background: var(--estatus-r-bg); color: var(--estatus-r); padding: 10px 12px; border-radius: var(--radio-sm); font-size: 13px; font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

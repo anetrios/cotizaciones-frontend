@@ -1,0 +1,10 @@
+.filtros { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; }
+.paginacion { display: flex; align-items: center; justify-content: space-between; margin-top: 16px; padding: 0 4px; }
+.buscador { position: relative; }
+.buscador-resultados { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--superficie); border: 1px solid var(--borde-fuerte); border-radius: var(--radio-sm); box-shadow: var(--sombra-md); max-height: 280px; overflow-y: auto; z-index: 20; }
+.buscador-opcion { padding: 10px 14px; border-bottom: 1px solid var(--borde); cursor: pointer; transition: background .12s; }
+.buscador-opcion:last-child { border-bottom: none; }
+.buscador-opcion:hover { background: var(--acento-suave); }
+.buscador-opcion .op-titulo { font-weight: 600; font-size: 14px; }
+.buscador-opcion .op-sub { font-size: 12px; color: var(--texto-suave); }
+@media (max-width: 720px) { .filtros { grid-template-columns: 1fr; } }
