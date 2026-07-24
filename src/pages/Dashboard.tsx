@@ -1,97 +1,88 @@
 import { useEffect, useState } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, CartesianGrid,
-} from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Layout } from '../components/Layout';
 import { Spinner, moneda } from '../components/ui/UI';
+import { useToast } from '../components/ui/Toast';
 import { cotizacionesApi } from '../api/cotizaciones';
 import { mensajeError } from '../api/client';
 import type { DashboardData } from '../types';
-import './Dashboard.css';
 
-const COLOR_ESTATUS = { Pendientes: '#F59E0B', Aprobadas: '#16A34A', Rechazadas: '#DC2626', Vencidas: '#6B7280' };
+const COLORES = ['#6B7280', '#2563EB', '#16A34A', '#DC2626'];
 
-export function Dashboard() {
+export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [error, setError] = useState('');
+  const { mostrar } = useToast();
+  const navigate = useNavigate();
 
-  useEffect(() => { cotizacionesApi.dashboard().then(setData).catch((e) => setError(mensajeError(e))); }, []);
+  useEffect(() => {
+    cotizacionesApi.dashboard().then(setData).catch((e) => mostrar(mensajeError(e), 'error'));
+  }, [mostrar]);
 
-  if (error) return <Layout titulo="Dashboard"><div className="login-error">{error}</div></Layout>;
   if (!data) return <Layout titulo="Dashboard"><Spinner /></Layout>;
-
-  const { resumen, porMes } = data;
-  const tarjetas = [
-    { etiqueta: 'Cotizaciones del mes', valor: resumen.Total, acento: false },
-    { etiqueta: 'Total cotizado', valor: moneda(resumen.TotalCotizado), acento: true },
-    { etiqueta: 'Total aprobado', valor: moneda(resumen.TotalAprobado), acento: false },
-    { etiqueta: 'Pendientes', valor: resumen.Pendientes, acento: false },
+  const r = data.resumen;
+  const kpis = [
+    { etq: 'Cotizaciones (30 días)', val: r.Total ?? 0 },
+    { etq: 'Aprobadas', val: r.Aprobadas ?? 0 },
+    { etq: 'Monto cotizado', val: moneda(r.TotalCotizado) },
+    { etq: 'Monto aprobado', val: moneda(r.TotalAprobado) },
   ];
-  const datosEstatus = [
-    { nombre: 'Pendientes', valor: resumen.Pendientes },
-    { nombre: 'Aprobadas', valor: resumen.Aprobadas },
-    { nombre: 'Rechazadas', valor: resumen.Rechazadas },
-    { nombre: 'Vencidas', valor: resumen.Vencidas },
-  ].filter((d) => d.valor > 0);
-  const datosMes = porMes.map((m) => ({ mes: m.Mes, Cotizaciones: m.Total, Monto: Number(m.Monto) }));
+  const pastel = [
+    { name: 'Borrador', value: r.Borradores ?? 0 },
+    { name: 'Enviada', value: r.Enviadas ?? 0 },
+    { name: 'Aprobada', value: r.Aprobadas ?? 0 },
+    { name: 'Rechazada', value: r.Rechazadas ?? 0 },
+  ].filter((x) => x.value > 0);
+  const barras = data.porMes.map((m) => ({ mes: m.Mes.slice(5), Cotizaciones: m.Total }));
 
   return (
-    <Layout titulo="Dashboard">
-      <div className="kpis">
-        {tarjetas.map((t) => (
-          <div key={t.etiqueta} className={`kpi ${t.acento ? 'kpi-acento' : ''}`}>
-            <span className="kpi-etiqueta">{t.etiqueta}</span>
-            <span className="kpi-valor num">{t.valor}</span>
+    <Layout titulo="Dashboard" acciones={
+      <button className="btn btn-primario" onClick={() => navigate('/cotizaciones/nueva')}>+ Nueva cotización</button>
+    }>
+      <div className="grid-4-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 20 }}>
+        {kpis.map((k) => (
+          <div key={k.etq} className="card card-cuerpo">
+            <div className="texto-suave" style={{ fontSize: 13, marginBottom: 6 }}>{k.etq}</div>
+            <div style={{ fontSize: 26, fontFamily: 'var(--display)', fontWeight: 800 }}>{k.val}</div>
           </div>
         ))}
       </div>
 
-      <div className="dash-grid">
-        <div className="card"><div className="card-cuerpo">
-          <h3 className="dash-titulo">Actividad por mes</h3>
-          {datosMes.length === 0 ? <p className="texto-suave mt-16">Sin datos en el período.</p> : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={datosMes} margin={{ top: 12, right: 8, left: 8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#EEF0F2" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12, fill: '#8A94A1' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#8A94A1' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip cursor={{ fill: 'rgba(245,130,32,0.06)' }} />
-                <Bar dataKey="Cotizaciones" fill="#F58220" radius={[6, 6, 0, 0]} maxBarSize={48} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16 }} className="dash-grid">
+        <div className="card card-cuerpo">
+          <h3 style={{ marginBottom: 14, fontSize: 16 }}>Cotizaciones por mes</h3>
+          {barras.length ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={barras}>
+                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="Cotizaciones" fill="#F5B301" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          )}
-        </div></div>
-
-        <div className="card"><div className="card-cuerpo">
-          <h3 className="dash-titulo">Por estatus</h3>
-          {datosEstatus.length === 0 ? <p className="texto-suave mt-16">Sin cotizaciones aún.</p> : (
-            <>
-              <ResponsiveContainer width="100%" height={210}>
-                <PieChart>
-                  <Pie data={datosEstatus} dataKey="valor" nameKey="nombre" innerRadius={56} outerRadius={88} paddingAngle={2}>
-                    {datosEstatus.map((d) => <Cell key={d.nombre} fill={COLOR_ESTATUS[d.nombre as keyof typeof COLOR_ESTATUS]} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="leyenda">
-                {datosEstatus.map((d) => (
-                  <div key={d.nombre} className="leyenda-item">
-                    <span className="leyenda-punto" style={{ background: COLOR_ESTATUS[d.nombre as keyof typeof COLOR_ESTATUS] }} />
-                    {d.nombre} <strong className="num">{d.valor}</strong>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div></div>
-      </div>
-
-      <div className="reparto">
-        <div className="reparto-item"><span className="badge-tipo R">Renta</span><span className="num reparto-num">{resumen.TipoRenta}</span></div>
-        <div className="reparto-sep" />
-        <div className="reparto-item"><span className="badge-tipo V">Venta</span><span className="num reparto-num">{resumen.TipoVenta}</span></div>
+          ) : <p className="texto-suave">Sin datos todavía.</p>}
+        </div>
+        <div className="card card-cuerpo">
+          <h3 style={{ marginBottom: 14, fontSize: 16 }}>Por estatus</h3>
+          {pastel.length ? (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={pastel} dataKey="value" nameKey="name" innerRadius={50} outerRadius={90} paddingAngle={2}>
+                  {pastel.map((_, i) => <Cell key={i} fill={COLORES[i % COLORES.length]} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <p className="texto-suave">Sin datos todavía.</p>}
+          <div className="flex gap-12 wrap mt-8" style={{ justifyContent: 'center' }}>
+            {pastel.map((p, i) => (
+              <span key={p.name} className="flex items-center gap-6" style={{ fontSize: 12 }}>
+                <span style={{ width: 10, height: 10, borderRadius: 3, background: COLORES[i % COLORES.length] }} />
+                {p.name}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </Layout>
   );

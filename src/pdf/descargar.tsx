@@ -1,24 +1,15 @@
-import type { CotizacionCompleta } from '../types';
+import type { CotizacionCompleta, SucursalConContactos } from '../types';
 
-/**
- * Genera el PDF y dispara la descarga. Tanto @react-pdf como el documento
- * se importan de forma dinámica: la librería pesada queda fuera del bundle
- * inicial y solo se descarga cuando el usuario genera un PDF.
- */
-export async function descargarCotizacionPDF(cot: CotizacionCompleta): Promise<void> {
+/** Genera y descarga el PDF. Importa @react-pdf dinámicamente (code-splitting). */
+export async function descargarPDF(cot: CotizacionCompleta, sucursales: SucursalConContactos[]) {
   const [{ pdf }, { CotizacionPDF }] = await Promise.all([
     import('@react-pdf/renderer'),
     import('./CotizacionPDF'),
   ]);
-
-  const blob = await pdf(<CotizacionPDF cot={cot} />).toBlob();
-
+  const blob = await pdf(<CotizacionPDF cot={cot} sucursales={sucursales} />).toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `Cotizacion-${cot.Folio}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  a.href = url; a.download = `Cotizacion_${cot.Folio}.pdf`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }

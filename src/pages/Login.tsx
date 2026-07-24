@@ -1,80 +1,54 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { mensajeError } from '../api/client';
 import './Login.css';
 
-const LOGO = 'https://mercadodeandamios.com.mx/wp-content/uploads/2025/05/Diseno-sin-titulo-31.png';
-
-export function Login() {
+export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [usuario, setUsuario] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [cargando, setCargando] = useState(false);
 
-  const enviar = async (e: FormEvent) => {
+  const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setCargando(true);
-    try {
-      await login(usuario.trim(), password);
-      navigate('/');
-    } catch (err) {
-      setError(mensajeError(err));
-    } finally {
-      setCargando(false);
-    }
+    try { await login(email, password); navigate('/'); }
+    catch (err) { setError(mensajeError(err)); }
+    finally { setCargando(false); }
   };
 
   return (
-    <div className="login-split">
-      {/* Panel de marca */}
+    <div className="login">
       <div className="login-marca">
-        <div className="login-marca-top">
-          <img src={LOGO} alt="Mercado de Andamios" className="login-marca-logo" />
+        <div className="login-marca-contenido">
+          <img src="/logo.png" alt="Mercado de Andamios" className="login-logo" />
+          <h1>Sistema de Cotizaciones</h1>
+          <p>Renta y venta de andamios y equipo para construcción.</p>
         </div>
-        <div className="login-marca-centro">
-          <span className="login-eyebrow">Cada hora cuenta</span>
-          <h2 className="login-frase">Tu obra no espera.<br />Tu cotización tampoco.</h2>
-          <p className="login-marca-sub">
-            Genera, aprueba y envía cotizaciones de renta y venta de maquinaria
-            en minutos.
-          </p>
-        </div>
-        <div className="login-stats">
-          <div><strong>+10</strong><span>años</span></div>
-          <div><strong>4</strong><span>ciudades</span></div>
-          <div><strong>+500</strong><span>obras</span></div>
-        </div>
-        <div className="hazard-strip login-marca-cinta" />
+        <div className="hazard-strip login-hazard" />
       </div>
-
-      {/* Panel de formulario */}
       <div className="login-form-lado">
-        <div className="login-form-box">
-          <h1 className="login-titulo">Iniciar sesión</h1>
-          <p className="login-sub">Sistema de cotizaciones · acceso interno</p>
-
-          <form onSubmit={enviar} className="login-form">
-            <div className="campo">
-              <label htmlFor="usuario">Usuario</label>
-              <input id="usuario" className="input" value={usuario}
-                onChange={(e) => setUsuario(e.target.value)} autoComplete="username" autoFocus required />
-            </div>
-            <div className="campo">
-              <label htmlFor="password">Contraseña</label>
-              <input id="password" type="password" className="input" value={password}
-                onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <button type="submit" className="btn btn-primario w-full" disabled={cargando} style={{ padding: 12 }}>
-              {cargando ? 'Entrando…' : 'Entrar'}
-            </button>
-          </form>
-
-          <p className="login-pie">© {new Date().getFullYear()} Mercado de Andamios SA de CV</p>
-        </div>
+        <form className="login-form" onSubmit={enviar}>
+          <h2>Iniciar sesión</h2>
+          <p className="texto-suave" style={{ marginBottom: 20 }}>Entra con tu correo y contraseña.</p>
+          {error && <div className="aviso error" style={{ marginBottom: 16 }}>{error}</div>}
+          <div className="campo" style={{ marginBottom: 14 }}>
+            <label htmlFor="email">Correo</label>
+            <input id="email" className="input" type="email" value={email} autoFocus
+              onChange={(e) => setEmail(e.target.value)} placeholder="tucorreo@mercadoandamios.com" required />
+          </div>
+          <div className="campo" style={{ marginBottom: 22 }}>
+            <label htmlFor="pass">Contraseña</label>
+            <input id="pass" className="input" type="password" value={password}
+              onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+          </div>
+          <button className="btn btn-primario btn-block" type="submit" disabled={cargando}>
+            {cargando ? 'Entrando…' : 'Entrar'}
+          </button>
+        </form>
       </div>
     </div>
   );

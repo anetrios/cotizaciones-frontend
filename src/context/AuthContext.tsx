@@ -1,45 +1,43 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import type { UsuarioSesion } from '../types';
+import type { UsuarioSesion, Rol } from '../types';
 import { authApi } from '../api/auth';
 
-interface AuthContextValor {
+interface Valor {
   usuario: UsuarioSesion | null;
   autenticado: boolean;
-  login: (usuario: string, password: string) => Promise<void>;
+  esAdmin: boolean;
+  puedeEscribir: boolean;
+  tieneRol: (...roles: Rol[]) => boolean;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
-
-const AuthContext = createContext<AuthContextValor | null>(null);
+const Ctx = createContext<Valor | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioSesion | null>(() => {
-    const guardado = localStorage.getItem('usuario');
-    return guardado ? JSON.parse(guardado) : null;
+    const g = localStorage.getItem('usuario'); return g ? JSON.parse(g) : null;
   });
-
-  const login = async (clave: string, password: string) => {
-    const { token, usuario } = await authApi.login(clave, password);
+  const login = async (email: string, password: string) => {
+    const { token, usuario } = await authApi.login(email, password);
     localStorage.setItem('token', token);
     localStorage.setItem('usuario', JSON.stringify(usuario));
     setUsuario(usuario);
   };
-
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('usuario');
-    setUsuario(null);
+    localStorage.removeItem('token'); localStorage.removeItem('usuario'); setUsuario(null);
   };
-
+  const tieneRol = (...roles: Rol[]) => !!usuario && roles.includes(usuario.Rol);
   return (
-    <AuthContext.Provider value={{ usuario, autenticado: !!usuario, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <Ctx.Provider value={{
+      usuario, autenticado: !!usuario, esAdmin: usuario?.Rol === 'ADMIN',
+      puedeEscribir: usuario?.Rol === 'ADMIN' || usuario?.Rol === 'VENDEDOR',
+      tieneRol, login, logout,
+    }}>{children}</Ctx.Provider>
   );
 }
-
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth debe usarse dentro de AuthProvider');
-  return ctx;
+  const c = useContext(Ctx);
+  if (!c) throw new Error('useAuth fuera de AuthProvider');
+  return c;
 }

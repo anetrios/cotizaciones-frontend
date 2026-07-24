@@ -1,8 +1,6 @@
 import axios from 'axios';
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-});
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api' });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -13,20 +11,16 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
-      window.location.href = '/login';
+    if (error.response?.status === 401 && !location.pathname.includes('/login')) {
+      localStorage.removeItem('token'); localStorage.removeItem('usuario');
+      location.href = '/login';
     }
     return Promise.reject(error);
   }
 );
 
 export function mensajeError(error: unknown): string {
-  if (axios.isAxiosError(error)) {
-    return error.response?.data?.error || error.message || 'Error de conexión';
-  }
+  if (axios.isAxiosError(error)) return error.response?.data?.error || error.message || 'Error de conexión';
   return 'Error inesperado';
 }
-
 export default api;

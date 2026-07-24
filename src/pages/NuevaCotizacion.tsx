@@ -1,234 +1,530 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { moneda } from '../components/ui/UI';
+import { Modal } from '../components/ui/Modal';
+import { Spinner, moneda } from '../components/ui/UI';
 import { useToast } from '../components/ui/Toast';
-import { clientesApi } from '../api/clientes';
-import { articulosApi } from '../api/articulos';
+import { crearRecursoApi } from '../api/recurso';
+import { metaApi } from '../api/meta';
 import { cotizacionesApi } from '../api/cotizaciones';
 import { mensajeError } from '../api/client';
-import type { Cliente, Articulo, NuevaLinea, TipoCotizacion, TipoTarifa } from '../types';
-import { ETIQUETA_TARIFA } from '../types';
+import type { Cliente, Nota, TipoCotizacion } from '../types';
 import './NuevaCotizacion.css';
-import './paginas.css';
 
-const TARIFA_CAMPO: Record<TipoTarifa, keyof Articulo> = {
-  H: 'TarifaPorHora', D: 'TarifaDiaria', S: 'TarifaSemanal', M: 'TarifaMensual', E: 'TarifaSemestral',
-};
+interface RenglonForm {
+  key: string;
+  IdArticuloRenta?: number | null; IdArticuloVenta?: number | null; IdServicio?: number | null;
+  CodigoSnapshot: string | null; Descripcion: string;
+  PrecioUnitario: number; Cantidad: number;
+  UnidadCobro: string | null; NumeroPeriodos: number;
+}
+const ETQ_UNIDAD: Record<string, string> = { DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza' };
+const uid = () => Math.random().toString(36).slice(2, 9);
+const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-export function NuevaCotizacion() {
+export default function NuevaCotizacion() {
+  const { id } = useParams<{ id: string }>();
+  const editando = !!id;
   const navigate = useNavigate();
   const { mostrar } = useToast();
-  const [tipo, setTipo] = useState<TipoCotizacion>('R');
+
+  const [tipo, setTipo] = useState<TipoCotizacion>('RENTA');
+  const [folio, setFolio] = useState('');
+  const [sucursales, setSucursales] = useState<{ IdSucursal: number; Nombre: string }[]>([]);
+  const [notas, setNotas] = useState<Nota[]>([]);
+  const [umbralPin, setUmbralPin] = useState(15);
+  const [cargandoCot, setCargandoCot] = useState(editando);
+
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [idSucursal, setIdSucursal] = useState<number | ''>('');
+  const [moneda_, setMoneda] = useState<'MXN' | 'USD'>('MXN');
+  const [tipoCambio, setTipoCambio] = useState<number | ''>('');
+  const [vigencia, setVigencia] = useState(15);
+  const [condPago, setCondPago] = useState<'CONTADO' | 'CREDITO'>('CONTADO');
+  const [diasCredito, setDiasCredito] = useState<number | ''>('');
+  const [tiempoEntrega, setTiempoEntrega] = useState('');
+  const [garantia, setGarantia] = useState('');
+  const [condEntrega, setCondEntrega] = useState('');
+  const [anticipoPct, setAnticipoPct] = useState<number | ''>('');
+  const [formaSaldo, setFormaSaldo] = useState('');
   const [descuento, setDescuento] = useState(0);
-  const [notas, setNotas] = useState('');
-  const [lineas, setLineas] = useState<NuevaLinea[]>([]);
+  const [ivaPct, setIvaPct] = useState(16);
+  const [pin, setPin] = useState('');
+
+  const [renglones, setRenglones] = useState<RenglonForm[]>([]);
+  const [modalCliente, setModalCliente] = useState(false);
+  const [modalConcepto, setModalConcepto] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  const ID_SUCURSAL = 1;
-  const ID_MONEDA = 1;
+  useEffect(() => {
+    crearRecursoApi('admin/sucursales').listar().then(setSucursales).catch(() => {
+      // vendedores no acceden a /admin/sucursales; usar meta
+      metaApi.sucursales().then((s) => setSucursales(s.map((x) => ({ IdSucursal: x.IdSucursal, Nombre: x.Nombre }))));
+    });
+    cotizacionesApi.parametros().then((p) => setUmbralPin(p.umbralDescuentoPin)).catch(() => {});
+  }, []);
 
-  const [busqCliente, setBusqCliente] = useState('');
-  const [resCliente, setResCliente] = useState<Cliente[]>([]);
-  const [abreCliente, setAbreCliente] = useState(false);
+  // Cargar cotización existente en modo edición
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        const cot = await cotizacionesApi.obtener(+id);
+        const cli = await crearRecursoApi('clientes').obtener(cot.IdCliente) as Cliente;
+        setTipo(cot.Tipo);
+        setFolio(cot.Folio);
+        setCliente(cli);
+        setIdSucursal(cot.IdSucursal);
+        setMoneda(cot.Moneda as 'MXN' | 'USD');
+        setTipoCambio(cot.TipoCambio ?? '');
+        setVigencia(cot.VigenciaDias);
+        setCondPago(cot.CondicionPago);
+        setDiasCredito(cot.DiasCredito ?? '');
+        setTiempoEntrega(cot.TiempoEntrega ?? '');
+        setGarantia(cot.Garantia ?? '');
+        setCondEntrega(cot.CondicionesEntrega ?? '');
+        setAnticipoPct(cot.AnticipoPorcentaje ?? '');
+        setFormaSaldo(cot.FormaLiquidacionSaldo ?? '');
+        setDescuento(Number(cot.DescuentoPorcentaje));
+        const baseGravable = Number(cot.Subtotal) - Number(cot.DescuentoMonto);
+        setIvaPct(baseGravable > 0 ? Math.round((Number(cot.IVA) / baseGravable) * 100) : 16);
+        setRenglones(cot.renglones.map((r) => ({
+          key: uid(), IdArticuloRenta: r.IdArticuloRenta, IdArticuloVenta: r.IdArticuloVenta, IdServicio: r.IdServicio,
+          CodigoSnapshot: r.CodigoSnapshot, Descripcion: r.Descripcion, PrecioUnitario: Number(r.PrecioUnitario),
+          Cantidad: Number(r.Cantidad), UnidadCobro: r.UnidadCobro, NumeroPeriodos: Number(r.NumeroPeriodos) || 1,
+        })));
+      } catch (e) {
+        mostrar(mensajeError(e), 'error');
+        navigate('/cotizaciones');
+      } finally {
+        setCargandoCot(false);
+      }
+    })();
+  }, [id, mostrar, navigate]);
 
   useEffect(() => {
-    if (cliente) return;
-    const t = setTimeout(async () => {
-      if (busqCliente.trim().length < 2) { setResCliente([]); return; }
-      try { const r = await clientesApi.listar(busqCliente); setResCliente(r.slice(0, 8)); setAbreCliente(true); } catch { /* */ }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [busqCliente, cliente]);
+    metaApi.notas(tipo).then((ns) => {
+      setNotas(ns);
+      if (editando) return; // no pisar los datos ya cargados de la cotización
+      // precargar defaults
+      const def = (cat: string) => ns.find((n) => n.Categoria === cat && n.EsDefault)?.Texto || '';
+      setTiempoEntrega(def('TIEMPO_ENTREGA'));
+      setCondEntrega(def('ENTREGA'));
+      setGarantia(tipo === 'VENTA' ? def('GARANTIA') : '');
+    });
+    if (editando) return;
+    // limpiar renglones al cambiar de tipo (cambian los conceptos válidos)
+    setRenglones([]);
+  }, [tipo, editando]);
 
-  const [busqArt, setBusqArt] = useState('');
-  const [resArt, setResArt] = useState<Articulo[]>([]);
-  const [abreArt, setAbreArt] = useState(false);
-  const refArt = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (busqArt.trim().length < 2) { setResArt([]); return; }
-      try { const r = await articulosApi.listar(busqArt); setResArt(r.slice(0, 10)); setAbreArt(true); } catch { /* */ }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [busqArt]);
-
-  const precioSugerido = (art: Articulo, tarifa: TipoTarifa | null): number => {
-    if (tipo === 'V') return Number(art.PrecioDeVenta || 0);
-    if (tarifa) return Number(art[TARIFA_CAMPO[tarifa]] || 0);
-    return Number(art.TarifaDiaria || 0);
-  };
-
-  const agregarArticulo = (art: Articulo) => {
-    const tarifaInicial: TipoTarifa | null = tipo === 'R' ? 'D' : null;
-    setLineas((prev) => [...prev, {
-      IdArticulo: art.IdArticulo, Codigo: art.Codigo, Descripcion: art.Descripcion || '',
-      TipoTarifa: tarifaInicial, PrecioUnitario: precioSugerido(art, tarifaInicial),
-      Cantidad: 1, IVA: Number(art.IVA ?? 16),
-    }]);
-    setBusqArt(''); setResArt([]); setAbreArt(false);
-  };
-
-  const actualizarLinea = (idx: number, cambios: Partial<NuevaLinea>) =>
-    setLineas((prev) => prev.map((l, i) => (i === idx ? { ...l, ...cambios } : l)));
-  const quitarLinea = (idx: number) => setLineas((prev) => prev.filter((_, i) => i !== idx));
-
-  useEffect(() => {
-    setLineas((prev) => prev.map((l) => ({ ...l, TipoTarifa: tipo === 'R' ? (l.TipoTarifa || 'D') : null })));
-  }, [tipo]);
+  const notasDe = (cat: string) => notas.filter((n) => n.Categoria === cat);
 
   const totales = useMemo(() => {
-    let subTotal = 0, iva = 0;
-    for (const l of lineas) {
-      const importe = l.PrecioUnitario * l.Cantidad;
-      subTotal += importe; iva += importe * (l.IVA / 100);
-    }
-    const desc = subTotal * (descuento / 100);
-    const subConDesc = subTotal - desc;
-    return { subTotal, descuentoImporte: desc, subConDesc, iva, total: subConDesc + iva };
-  }, [lineas, descuento]);
+    const conImporte = renglones.map((r) => {
+      const per = tipo === 'RENTA' ? (r.NumeroPeriodos || 1) : 1;
+      return { ...r, Importe: r2(r.Cantidad * per * r.PrecioUnitario) };
+    });
+    const subtotal = r2(conImporte.reduce((a, r) => a + r.Importe, 0));
+    const descMonto = r2(subtotal * (descuento / 100));
+    const base = r2(subtotal - descMonto);
+    const iva = r2(base * (ivaPct / 100));
+    const total = r2(base + iva);
+    const anticipo = tipo === 'VENTA' && anticipoPct !== '' ? r2(total * (Number(anticipoPct) / 100)) : null;
+    return { conImporte, subtotal, descMonto, iva, total, anticipo };
+  }, [renglones, tipo, descuento, ivaPct, anticipoPct]);
+
+  const requierePin = descuento > umbralPin;
+
+  const actualizarRenglon = (key: string, campo: keyof RenglonForm, valor: unknown) =>
+    setRenglones((prev) => prev.map((r) => (r.key === key ? { ...r, [campo]: valor } : r)));
+  const quitarRenglon = (key: string) => setRenglones((prev) => prev.filter((r) => r.key !== key));
+
+  const validar = (): string | null => {
+    if (!cliente) return 'Selecciona un cliente';
+    if (cliente.Restriccion === 'BLOQUEO') return 'El cliente está BLOQUEADO (lista negra). No se puede cotizar.';
+    if (!idSucursal) return 'Selecciona una sucursal';
+    if (!renglones.length) return 'Agrega al menos un concepto';
+    if (moneda_ === 'USD' && !tipoCambio) return 'Indica el tipo de cambio para USD';
+    if (condPago === 'CREDITO' && !diasCredito) return 'Indica los días de crédito';
+    if (requierePin && !pin) return `El descuento de ${descuento}% requiere PIN de supervisor`;
+    return null;
+  };
 
   const guardar = async () => {
-    if (!cliente) { mostrar('Selecciona un cliente', 'error'); return; }
-    if (lineas.length === 0) { mostrar('Agrega al menos un artículo', 'error'); return; }
+    const err = validar();
+    if (err) { mostrar(err, 'error'); return; }
     setGuardando(true);
     try {
-      const creada = await cotizacionesApi.crear({
-        Tipo: tipo, IdCliente: cliente.IdCliente, IdSucursal: ID_SUCURSAL, IdTipoMoneda: ID_MONEDA,
-        Descuento: descuento, Notas: notas || null,
-        detalles: lineas.map(({ Codigo, ...resto }) => { void Codigo; return resto; }),
-      });
-      mostrar(`Cotización ${creada.Folio} creada`, 'exito');
-      navigate(`/cotizaciones/${creada.IdCotizacion}`);
+      const payload = {
+        Tipo: tipo, IdCliente: cliente!.IdCliente, IdSucursal: Number(idSucursal),
+        Moneda: moneda_, TipoCambio: moneda_ === 'USD' ? Number(tipoCambio) : null,
+        VigenciaDias: vigencia,
+        TiempoEntrega: tiempoEntrega || null, Garantia: garantia || null, CondicionesEntrega: condEntrega || null,
+        CondicionPago: condPago, DiasCredito: condPago === 'CREDITO' ? Number(diasCredito) : null,
+        AnticipoPorcentaje: tipo === 'VENTA' && anticipoPct !== '' ? Number(anticipoPct) : null,
+        FormaLiquidacionSaldo: tipo === 'VENTA' ? (formaSaldo || null) : null,
+        DescuentoPorcentaje: descuento, IVAPorcentaje: ivaPct,
+        PinSupervisor: requierePin ? pin : null,
+        renglones: renglones.map((r, i) => ({
+          Orden: i + 1, IdArticuloRenta: r.IdArticuloRenta ?? null, IdArticuloVenta: r.IdArticuloVenta ?? null,
+          IdServicio: r.IdServicio ?? null, CodigoSnapshot: r.CodigoSnapshot, Descripcion: r.Descripcion,
+          PrecioUnitario: r.PrecioUnitario, Cantidad: r.Cantidad,
+          UnidadCobro: r.UnidadCobro, NumeroPeriodos: tipo === 'RENTA' ? r.NumeroPeriodos : 1,
+        })),
+      };
+      if (editando) {
+        const actualizada = await cotizacionesApi.actualizar(+id!, payload);
+        mostrar(`Cotización ${actualizada.Folio} actualizada`, 'exito');
+        navigate(`/cotizaciones/${actualizada.IdCotizacion}`);
+      } else {
+        const creada = await cotizacionesApi.crear(payload);
+        mostrar(`Cotización ${creada.Folio} creada`, 'exito');
+        navigate(`/cotizaciones/${creada.IdCotizacion}`);
+      }
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setGuardando(false); }
   };
 
+  if (cargandoCot) return <Layout titulo="Editar cotización"><Spinner /></Layout>;
+
   return (
-    <Layout titulo="Nueva cotización" acciones={
-      <button className="btn btn-secundario" onClick={() => navigate('/cotizaciones')}>Cancelar</button>
+    <Layout titulo={editando ? `Editar cotización ${folio}` : 'Nueva cotización'} acciones={
+      <button className="btn btn-secundario" onClick={() => navigate(editando ? `/cotizaciones/${id}` : '/cotizaciones')}>Cancelar</button>
     }>
-      <div className="nc-grid">
-        <div className="flex-col gap-16">
-          <div className="card"><div className="card-cuerpo flex-col gap-16">
-            <div className="campo">
-              <label>Tipo de cotización</label>
-              <div className="toggle-tipo">
-                <button className={tipo === 'R' ? 'activo' : ''} onClick={() => setTipo('R')}>Renta</button>
-                <button className={tipo === 'V' ? 'activo' : ''} onClick={() => setTipo('V')}>Venta</button>
-              </div>
+      <div className="nc-layout">
+        <div className="nc-form">
+          {/* Tipo */}
+          <section className="card card-cuerpo">
+            <h3 className="nc-seccion">1 · Tipo de cotización</h3>
+            <div className="nc-tipo-selector">
+              {(['RENTA', 'VENTA'] as TipoCotizacion[]).map((t) => (
+                <button key={t} className={`nc-tipo-btn ${tipo === t ? 'activo' : ''}`} onClick={() => setTipo(t)}>
+                  <span className="nc-tipo-titulo">{t === 'RENTA' ? 'Renta' : 'Venta'}</span>
+                  <span className="nc-tipo-desc">{t === 'RENTA' ? 'Por días o meses' : 'Equipo / productos'}</span>
+                </button>
+              ))}
             </div>
-            <div className="campo buscador">
-              <label>Cliente</label>
-              {cliente ? (
-                <div className="cliente-elegido">
-                  <div>
-                    <div className="op-titulo">{cliente.NombreComercial}</div>
-                    <div className="op-sub">{cliente.Contacto && `${cliente.Contacto} · `}{cliente.Telefono || 'Sin teléfono'}</div>
-                  </div>
-                  <button className="btn btn-fantasma btn-sm" onClick={() => { setCliente(null); setBusqCliente(''); }}>Cambiar</button>
-                </div>
-              ) : (
-                <>
-                  <input className="input" placeholder="Buscar cliente por nombre o clave…" value={busqCliente}
-                    onChange={(e) => setBusqCliente(e.target.value)} onFocus={() => resCliente.length && setAbreCliente(true)} />
-                  {abreCliente && resCliente.length > 0 && (
-                    <div className="buscador-resultados">
-                      {resCliente.map((c) => (
-                        <div key={c.IdCliente} className="buscador-opcion" onClick={() => { setCliente(c); setAbreCliente(false); }}>
-                          <div className="op-titulo">{c.NombreComercial}</div>
-                          <div className="op-sub">Clave {c.ClaveCliente ?? '—'} · {c.Telefono || 'Sin teléfono'}</div>
-                        </div>
-                      ))}
+          </section>
+
+          {/* Cliente + sucursal */}
+          <section className="card card-cuerpo">
+            <h3 className="nc-seccion">2 · Cliente y sucursal</h3>
+            {cliente ? (
+              <div className={`nc-cliente ${cliente.Restriccion !== 'NINGUNA' ? 'restringido' : ''}`}>
+                <div>
+                  <strong>{cliente.RazonSocial}</strong>
+                  {cliente.RFC && <span className="texto-suave"> · {cliente.RFC}</span>}
+                  {cliente.Restriccion !== 'NINGUNA' && (
+                    <div className={`aviso ${cliente.Restriccion === 'BLOQUEO' ? 'error' : 'warn'} mt-8`}>
+                      {cliente.Restriccion === 'BLOQUEO' ? '⛔ Cliente BLOQUEADO' : '⚠ Cliente con advertencia'}
+                      {cliente.MotivoRestriccion ? `: ${cliente.MotivoRestriccion}` : ''}
                     </div>
                   )}
+                </div>
+                <button className="btn btn-secundario btn-sm" onClick={() => setModalCliente(true)}>Cambiar</button>
+              </div>
+            ) : (
+              <button className="btn btn-secundario" onClick={() => setModalCliente(true)}>Seleccionar cliente…</button>
+            )}
+            <div className="campo mt-16">
+              <label>Sucursal <span className="req">*</span></label>
+              <select className="select" value={idSucursal} onChange={(e) => setIdSucursal(e.target.value ? Number(e.target.value) : '')}>
+                <option value="">— Selecciona —</option>
+                {sucursales.map((s) => <option key={s.IdSucursal} value={s.IdSucursal}>{s.Nombre}</option>)}
+              </select>
+            </div>
+          </section>
+
+          {/* Conceptos */}
+          <section className="card card-cuerpo">
+            <div className="flex justify-between items-center" style={{ marginBottom: 12 }}>
+              <h3 className="nc-seccion" style={{ margin: 0 }}>3 · Conceptos</h3>
+              <button className="btn btn-primario btn-sm" onClick={() => setModalConcepto(true)}>+ Agregar</button>
+            </div>
+            {renglones.length === 0 ? (
+              <p className="texto-suave">Aún no hay conceptos. Agrega artículos{tipo === 'RENTA' ? ' o servicios' : ''}.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="tabla nc-tabla">
+                  <thead>
+                    <tr>
+                      <th>Descripción</th><th style={{ width: 70 }}>Cant.</th>
+                      {tipo === 'RENTA' && <th style={{ width: 130 }}>Periodo</th>}
+                      <th style={{ width: 110 }}>P. Unit.</th>
+                      <th className="der" style={{ width: 110 }}>Importe</th><th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {totales.conImporte.map((r) => (
+                      <tr key={r.key}>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{r.Descripcion}</div>
+                          {r.CodigoSnapshot && <div className="texto-suave" style={{ fontSize: 12 }}>{r.CodigoSnapshot}</div>}
+                        </td>
+                        <td><input className="input nc-mini" type="number" min={1} value={r.Cantidad}
+                          onChange={(e) => actualizarRenglon(r.key, 'Cantidad', Math.max(1, Number(e.target.value)))} /></td>
+                        {tipo === 'RENTA' && (
+                          <td>
+                            {r.IdServicio ? <span className="texto-suave">—</span> : (
+                              <div className="flex items-center gap-6">
+                                <input className="input nc-mini" type="number" min={1} value={r.NumeroPeriodos}
+                                  onChange={(e) => actualizarRenglon(r.key, 'NumeroPeriodos', Math.max(1, Number(e.target.value)))} />
+                                <span className="texto-suave" style={{ fontSize: 12 }}>{ETQ_UNIDAD[r.UnidadCobro || ''] || ''}</span>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        <td><input className="input nc-mini" style={{ width: 96 }} type="number" min={0} step="any" value={r.PrecioUnitario}
+                          onChange={(e) => actualizarRenglon(r.key, 'PrecioUnitario', Number(e.target.value))} /></td>
+                        <td className="der num" style={{ fontWeight: 600 }}>{moneda(r.Importe, moneda_)}</td>
+                        <td><button className="btn btn-fantasma btn-sm" style={{ color: 'var(--error)' }} onClick={() => quitarRenglon(r.key)}>✕</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          {/* Condiciones */}
+          <section className="card card-cuerpo">
+            <h3 className="nc-seccion">4 · Condiciones</h3>
+            <div className="grid-2">
+              <div className="campo">
+                <label>Moneda</label>
+                <select className="select" value={moneda_} onChange={(e) => setMoneda(e.target.value as 'MXN' | 'USD')}>
+                  <option value="MXN">Pesos (MXN)</option>
+                  <option value="USD">Dólares (USD)</option>
+                </select>
+              </div>
+              {moneda_ === 'USD' && (
+                <div className="campo">
+                  <label>Tipo de cambio <span className="req">*</span></label>
+                  <input className="input" type="number" step="any" value={tipoCambio}
+                    onChange={(e) => setTipoCambio(e.target.value ? Number(e.target.value) : '')} placeholder="Ej. 18.50" />
+                </div>
+              )}
+              <div className="campo">
+                <label>Condición de pago</label>
+                <select className="select" value={condPago} onChange={(e) => setCondPago(e.target.value as 'CONTADO' | 'CREDITO')}>
+                  <option value="CONTADO">Contado</option>
+                  <option value="CREDITO">Crédito</option>
+                </select>
+              </div>
+              {condPago === 'CREDITO' && (
+                <div className="campo">
+                  <label>Días de crédito <span className="req">*</span></label>
+                  <select className="select" value={diasCredito} onChange={(e) => setDiasCredito(e.target.value ? Number(e.target.value) : '')}>
+                    <option value="">—</option>{[15, 30, 45, 60, 90].map((d) => <option key={d} value={d}>{d} días</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="campo">
+                <label>Tiempo de entrega</label>
+                <select className="select" value={tiempoEntrega} onChange={(e) => setTiempoEntrega(e.target.value)}>
+                  <option value="">—</option>
+                  {notasDe('TIEMPO_ENTREGA').map((n) => <option key={n.IdNota} value={n.Texto}>{n.Texto}</option>)}
+                </select>
+              </div>
+              <div className="campo">
+                <label>Condiciones de entrega</label>
+                <select className="select" value={condEntrega} onChange={(e) => setCondEntrega(e.target.value)}>
+                  <option value="">—</option>
+                  {notasDe('ENTREGA').map((n) => <option key={n.IdNota} value={n.Texto}>{n.Texto}</option>)}
+                </select>
+              </div>
+              {tipo === 'VENTA' && (
+                <div className="campo">
+                  <label>Garantía</label>
+                  <select className="select" value={garantia} onChange={(e) => setGarantia(e.target.value)}>
+                    <option value="">—</option>
+                    {notasDe('GARANTIA').map((n) => <option key={n.IdNota} value={n.Texto}>{n.Texto}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className="campo">
+                <label>Vigencia (días)</label>
+                <input className="input" type="number" min={1} value={vigencia} onChange={(e) => setVigencia(Number(e.target.value))} />
+              </div>
+              {tipo === 'VENTA' && (
+                <>
+                  <div className="campo">
+                    <label>Anticipo (%)</label>
+                    <input className="input" type="number" min={0} max={100} value={anticipoPct}
+                      onChange={(e) => setAnticipoPct(e.target.value ? Number(e.target.value) : '')} placeholder="Ej. 50" />
+                  </div>
+                  <div className="campo">
+                    <label>Liquidación del saldo</label>
+                    <select className="select" value={formaSaldo} onChange={(e) => setFormaSaldo(e.target.value)}>
+                      <option value="">—</option>
+                      <option value="CONTRA_AVISO_EMBARQUE">Contra aviso de embarque</option>
+                      <option value="CONTRA_EMBARQUE">Contra embarque</option>
+                      <option value="CONTRA_ENTREGA">Contra entrega</option>
+                    </select>
+                  </div>
                 </>
               )}
             </div>
-          </div></div>
+          </section>
+        </div>
 
-          <div className="card"><div className="card-cuerpo">
-            <div className="campo buscador" ref={refArt}>
-              <label>Agregar artículo</label>
-              <input className="input" placeholder="Buscar por descripción o código…" value={busqArt}
-                onChange={(e) => setBusqArt(e.target.value)} onFocus={() => resArt.length && setAbreArt(true)} />
-              {abreArt && resArt.length > 0 && (
-                <div className="buscador-resultados">
-                  {resArt.map((a) => (
-                    <div key={a.IdArticulo} className="buscador-opcion" onClick={() => agregarArticulo(a)}>
-                      <div className="op-titulo">{a.Descripcion}</div>
-                      <div className="op-sub">{a.Codigo} · Venta {moneda(a.PrecioDeVenta)} · Diaria {moneda(a.TarifaDiaria)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+        {/* Resumen sticky */}
+        <aside className="nc-resumen">
+          <div className="card card-cuerpo">
+            <h3 className="nc-seccion">Resumen</h3>
+            <div className="nc-total-linea"><span>Subtotal</span><span className="num">{moneda(totales.subtotal, moneda_)}</span></div>
+            <div className="campo mt-8">
+              <label>Descuento (%)</label>
+              <input className="input" type="number" min={0} max={100} value={descuento}
+                onChange={(e) => setDescuento(Math.min(100, Math.max(0, Number(e.target.value))))} />
             </div>
-
-            {lineas.length > 0 && (
-              <div className="lineas mt-16">
-                {lineas.map((l, idx) => (
-                  <div key={idx} className="linea">
-                    <div className="linea-desc">
-                      <div className="op-titulo">{l.Descripcion}</div>
-                      <div className="op-sub">{l.Codigo}</div>
-                    </div>
-                    {tipo === 'R' && (
-                      <select className="select linea-tarifa" value={l.TipoTarifa || 'D'}
-                        onChange={(e) => actualizarLinea(idx, { TipoTarifa: e.target.value as TipoTarifa })}>
-                        {(Object.keys(ETIQUETA_TARIFA) as TipoTarifa[]).map((k) => (
-                          <option key={k} value={k}>{ETIQUETA_TARIFA[k]}</option>
-                        ))}
-                      </select>
-                    )}
-                    <div className="linea-campo">
-                      <span className="linea-lbl">Precio</span>
-                      <input type="number" className="input linea-num" min={0} step="0.01" value={l.PrecioUnitario}
-                        onChange={(e) => actualizarLinea(idx, { PrecioUnitario: Number(e.target.value) })} />
-                    </div>
-                    <div className="linea-campo">
-                      <span className="linea-lbl">Cant.</span>
-                      <input type="number" className="input linea-num" min={1} step="1" value={l.Cantidad}
-                        onChange={(e) => actualizarLinea(idx, { Cantidad: Number(e.target.value) })} />
-                    </div>
-                    <div className="linea-importe num">{moneda(l.PrecioUnitario * l.Cantidad)}</div>
-                    <button className="btn btn-fantasma btn-sm linea-quitar" onClick={() => quitarLinea(idx)}>✕</button>
-                  </div>
-                ))}
+            {totales.descMonto > 0 && (
+              <div className="nc-total-linea"><span>Descuento</span><span className="num" style={{ color: 'var(--error)' }}>- {moneda(totales.descMonto, moneda_)}</span></div>
+            )}
+            {requierePin && (
+              <div className="campo mt-8">
+                <label style={{ color: 'var(--alerta)' }}>PIN de supervisor <span className="req">*</span></label>
+                <input className="input" type="password" value={pin} onChange={(e) => setPin(e.target.value)}
+                  placeholder={`Descuento > ${umbralPin}%`} />
+                <span className="texto-suave" style={{ fontSize: 12 }}>Requerido por superar el {umbralPin}%.</span>
               </div>
             )}
-          </div></div>
-
-          <div className="campo">
-            <label>Notas (opcional)</label>
-            <textarea className="textarea" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Condiciones, observaciones…" />
-          </div>
-        </div>
-
-        <div className="nc-resumen">
-          <div className="card">
-            <div className="hazard-strip" />
-            <div className="card-cuerpo">
-              <h3 className="dash-titulo">Resumen</h3>
-              <div className="resumen-fila"><span>Subtotal</span><span className="num">{moneda(totales.subTotal)}</span></div>
-              <div className="resumen-fila">
-                <span>Descuento
-                  <input type="number" className="input desc-input num" min={0} max={100} step="0.5" value={descuento}
-                    onChange={(e) => setDescuento(Math.min(100, Math.max(0, Number(e.target.value))))} />%
-                </span>
-                <span className="num">− {moneda(totales.descuentoImporte)}</span>
-              </div>
-              <div className="resumen-fila"><span>IVA</span><span className="num">{moneda(totales.iva)}</span></div>
-              <div className="resumen-total"><span>Total</span><span className="num">{moneda(totales.total)}</span></div>
-              <button className="btn btn-primario w-full mt-16" disabled={guardando} onClick={guardar}>
-                {guardando ? 'Guardando…' : 'Guardar cotización'}
-              </button>
-              <p className="texto-suave nc-nota">Vigencia: 15 días desde hoy · Folio automático</p>
+            <div className="campo mt-8">
+              <label>IVA (%)</label>
+              <input className="input" type="number" min={0} max={100} value={ivaPct} onChange={(e) => setIvaPct(Number(e.target.value))} />
             </div>
+            <div className="nc-total-linea"><span>IVA</span><span className="num">{moneda(totales.iva, moneda_)}</span></div>
+            <div className="nc-gran-total"><span>TOTAL</span><span className="num">{moneda(totales.total, moneda_)}</span></div>
+            {totales.anticipo != null && totales.anticipo > 0 && (
+              <div className="nc-anticipo">
+                <div className="nc-total-linea"><span>Anticipo</span><span className="num">{moneda(totales.anticipo, moneda_)}</span></div>
+                <div className="nc-total-linea"><span>Saldo</span><span className="num">{moneda(totales.total - totales.anticipo, moneda_)}</span></div>
+              </div>
+            )}
+            <button className="btn btn-primario btn-block mt-16" onClick={guardar} disabled={guardando}>
+              {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear cotización'}
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      {modalCliente && <ModalCliente onCerrar={() => setModalCliente(false)} onElegir={(c) => { setCliente(c); setModalCliente(false); }} />}
+      {modalConcepto && (
+        <ModalConcepto tipo={tipo} onCerrar={() => setModalConcepto(false)}
+          onElegir={(r) => { setRenglones((prev) => [...prev, r]); setModalConcepto(false); }} />
+      )}
+    </Layout>
+  );
+}
+
+/* ---------- Modal: elegir cliente ---------- */
+function ModalCliente({ onCerrar, onElegir }: { onCerrar: () => void; onElegir: (c: Cliente) => void }) {
+  const [busqueda, setBusqueda] = useState('');
+  const [filas, setFilas] = useState<Cliente[]>([]);
+  useEffect(() => {
+    const t = setTimeout(() => { crearRecursoApi('clientes').listar({ busqueda }).then((f) => setFilas(f as Cliente[])); }, 250);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+  return (
+    <Modal titulo="Seleccionar cliente" onCerrar={onCerrar} ancho={620}>
+      <input className="input" autoFocus placeholder="Buscar por razón social o RFC…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+      <div style={{ maxHeight: 380, overflowY: 'auto' }} className="mt-8">
+        {filas.map((c) => (
+          <button key={c.IdCliente} className="nc-item-lista" onClick={() => onElegir(c)}>
+            <div>
+              <strong>{c.RazonSocial}</strong>
+              {c.Restriccion !== 'NINGUNA' && <span className={`chip ${c.Restriccion === 'BLOQUEO' ? 'bad' : 'warn'}`} style={{ marginLeft: 8 }}>{c.Restriccion === 'BLOQUEO' ? 'Bloqueado' : 'Advertencia'}</span>}
+              <div className="texto-suave" style={{ fontSize: 12 }}>{c.RFC || 'Sin RFC'} · {c.Telefono || 's/tel'}</div>
+            </div>
+          </button>
+        ))}
+        {filas.length === 0 && <p className="texto-suave" style={{ padding: 12 }}>Sin resultados.</p>}
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------- Modal: agregar concepto ---------- */
+function ModalConcepto({ tipo, onCerrar, onElegir }: {
+  tipo: TipoCotizacion; onCerrar: () => void; onElegir: (r: RenglonForm) => void;
+}) {
+  const [fuente, setFuente] = useState<'articulo' | 'servicio' | 'manual'>('articulo');
+  const [busqueda, setBusqueda] = useState('');
+  const [filas, setFilas] = useState<Record<string, unknown>[]>([]);
+  const [manual, setManual] = useState({ Descripcion: '', PrecioUnitario: 0 });
+
+  const rutaArticulo = tipo === 'RENTA' ? 'articulos-renta' : 'articulos-venta';
+  useEffect(() => {
+    if (fuente === 'manual') return;
+    const ruta = fuente === 'servicio' ? 'servicios' : rutaArticulo;
+    const t = setTimeout(() => { crearRecursoApi(ruta).listar({ busqueda }).then(setFilas); }, 250);
+    return () => clearTimeout(t);
+  }, [fuente, busqueda, rutaArticulo]);
+
+  const elegirArticulo = (a: Record<string, unknown>) => {
+    if (tipo === 'RENTA') onElegir({
+      key: uid(), IdArticuloRenta: a.IdArticuloRenta as number, CodigoSnapshot: a.Codigo as string,
+      Descripcion: a.Descripcion as string, PrecioUnitario: a.Precio as number, Cantidad: 1,
+      UnidadCobro: a.UnidadCobro as string, NumeroPeriodos: 1,
+    });
+    else onElegir({
+      key: uid(), IdArticuloVenta: a.IdArticuloVenta as number, CodigoSnapshot: a.Codigo as string,
+      Descripcion: a.Descripcion as string, PrecioUnitario: a.Precio as number, Cantidad: 1,
+      UnidadCobro: null, NumeroPeriodos: 1,
+    });
+  };
+  const elegirServicio = (sv: Record<string, unknown>) => onElegir({
+    key: uid(), IdServicio: sv.IdServicio as number, CodigoSnapshot: sv.Codigo as string,
+    Descripcion: sv.Descripcion as string, PrecioUnitario: sv.Precio as number, Cantidad: 1,
+    UnidadCobro: sv.UnidadCobro as string, NumeroPeriodos: 1,
+  });
+
+  return (
+    <Modal titulo="Agregar concepto" onCerrar={onCerrar} ancho={640}>
+      <div className="nc-fuente-tabs">
+        <button className={fuente === 'articulo' ? 'activo' : ''} onClick={() => setFuente('articulo')}>Artículo</button>
+        {tipo === 'RENTA' && <button className={fuente === 'servicio' ? 'activo' : ''} onClick={() => setFuente('servicio')}>Servicio</button>}
+        <button className={fuente === 'manual' ? 'activo' : ''} onClick={() => setFuente('manual')}>Línea manual</button>
+      </div>
+
+      {fuente === 'manual' ? (
+        <div className="grid-2 mt-8">
+          <div className="campo" style={{ gridColumn: '1 / -1' }}>
+            <label>Descripción</label>
+            <input className="input" value={manual.Descripcion} onChange={(e) => setManual({ ...manual, Descripcion: e.target.value })} />
+          </div>
+          <div className="campo">
+            <label>Precio unitario</label>
+            <input className="input" type="number" step="any" value={manual.PrecioUnitario}
+              onChange={(e) => setManual({ ...manual, PrecioUnitario: Number(e.target.value) })} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button className="btn btn-primario" disabled={!manual.Descripcion}
+              onClick={() => onElegir({
+                key: uid(), CodigoSnapshot: null, Descripcion: manual.Descripcion, PrecioUnitario: manual.PrecioUnitario,
+                Cantidad: 1, UnidadCobro: tipo === 'RENTA' ? 'DIA' : null, NumeroPeriodos: 1,
+              })}>Agregar</button>
           </div>
         </div>
-      </div>
-    </Layout>
+      ) : (
+        <>
+          <input className="input mt-8" autoFocus placeholder="Buscar…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+          <div style={{ maxHeight: 360, overflowY: 'auto' }} className="mt-8">
+            {filas.map((a) => (
+              <button key={String(a.IdArticuloRenta ?? a.IdArticuloVenta ?? a.IdServicio)} className="nc-item-lista"
+                onClick={() => (fuente === 'servicio' ? elegirServicio(a) : elegirArticulo(a))}>
+                <div>
+                  <strong>{a.Descripcion as string}</strong>
+                  <div className="texto-suave" style={{ fontSize: 12 }}>
+                    {a.Codigo as string} · {moneda(a.Precio as number)}{a.UnidadCobro ? ` / ${ETQ_UNIDAD[a.UnidadCobro as string] || a.UnidadCobro}` : ''}
+                  </div>
+                </div>
+              </button>
+            ))}
+            {filas.length === 0 && <p className="texto-suave" style={{ padding: 12 }}>Sin resultados.</p>}
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }

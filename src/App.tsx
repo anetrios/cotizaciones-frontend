@@ -2,31 +2,65 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './components/ui/Toast';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { Cotizaciones } from './pages/Cotizaciones';
-import { NuevaCotizacion } from './pages/NuevaCotizacion';
-import { CotizacionDetalle } from './pages/CotizacionDetalle';
-import { Clientes } from './pages/Clientes';
-import { Articulos } from './pages/Articulos';
+import { AdminCRUD } from './components/AdminCRUD';
+import {
+  CFG_CLIENTES, CFG_ART_RENTA, CFG_ART_VENTA, CFG_SERVICIOS, CFG_UNIDADES, CFG_USUARIOS,
+} from './config/recursos';
+
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Cotizaciones from './pages/Cotizaciones';
+import NuevaCotizacion from './pages/NuevaCotizacion';
+import CotizacionDetalle from './pages/CotizacionDetalle';
+import Existencias from './pages/Existencias';
+import Sucursales from './pages/Sucursales';
+import Configuracion from './pages/Configuracion';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
+
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+
+            {/* Cotizaciones */}
             <Route path="/cotizaciones" element={<ProtectedRoute><Cotizaciones /></ProtectedRoute>} />
-            <Route path="/cotizaciones/nueva" element={<ProtectedRoute><NuevaCotizacion /></ProtectedRoute>} />
+            <Route path="/cotizaciones/nueva" element={
+              <ProtectedRoute roles={['ADMIN', 'VENDEDOR']}><NuevaCotizacion /></ProtectedRoute>
+            } />
+            <Route path="/cotizaciones/:id/editar" element={
+              <ProtectedRoute roles={['ADMIN', 'VENDEDOR']}><NuevaCotizacion /></ProtectedRoute>
+            } />
             <Route path="/cotizaciones/:id" element={<ProtectedRoute><CotizacionDetalle /></ProtectedRoute>} />
-            <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
-            <Route path="/articulos" element={<ProtectedRoute><Articulos /></ProtectedRoute>} />
+
+            {/* Catálogos */}
+            <Route path="/clientes" element={<ProtectedRoute><AdminCRUD config={CFG_CLIENTES} /></ProtectedRoute>} />
+            <Route path="/articulos-renta" element={<ProtectedRoute><AdminCRUD config={CFG_ART_RENTA} /></ProtectedRoute>} />
+            <Route path="/articulos-venta" element={<ProtectedRoute><AdminCRUD config={CFG_ART_VENTA} /></ProtectedRoute>} />
+            <Route path="/servicios" element={<ProtectedRoute><AdminCRUD config={CFG_SERVICIOS} /></ProtectedRoute>} />
+
+            {/* Inventario */}
+            <Route path="/unidades" element={<ProtectedRoute><AdminCRUD config={CFG_UNIDADES} /></ProtectedRoute>} />
+            <Route path="/existencias" element={<ProtectedRoute><Existencias /></ProtectedRoute>} />
+
+            {/* Administración (solo ADMIN) */}
+            <Route path="/usuarios" element={
+              <ProtectedRoute roles={['ADMIN']}><AdminCRUD config={CFG_USUARIOS} /></ProtectedRoute>
+            } />
+            <Route path="/sucursales" element={
+              <ProtectedRoute roles={['ADMIN']}><Sucursales /></ProtectedRoute>
+            } />
+            <Route path="/configuracion" element={
+              <ProtectedRoute roles={['ADMIN']}><Configuracion /></ProtectedRoute>
+            } />
+
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-        </BrowserRouter>
-      </ToastProvider>
-    </AuthProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
