@@ -37,9 +37,10 @@ const s = StyleSheet.create({
   trZebra: { backgroundColor: FONDO_SUAVE },
   cCant: { width: '7%', textAlign: 'center' },
   cCodigo: { width: '12%' },
-  cDesc: { width: '39%', paddingRight: 4 },
+  cDesc: { width: '31%', paddingRight: 4 },
   cPeriodo: { width: '13%', textAlign: 'center' },
   cPrecio: { width: '14%', textAlign: 'right' },
+  cDescLinea: { width: '8%', textAlign: 'right' },
   cImporte: { width: '15%', textAlign: 'right' },
   // Totales
   totalesEnvoltura: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
@@ -149,6 +150,7 @@ export function CotizacionPDF({ cot, sucursales }: { cot: CotizacionCompleta; su
           <Text style={s.cDesc}>Descripción</Text>
           {esRenta && <Text style={s.cPeriodo}>Periodo</Text>}
           <Text style={s.cPrecio}>P. Unit.</Text>
+          <Text style={s.cDescLinea}>Desc.</Text>
           <Text style={s.cImporte}>Importe</Text>
         </View>
         {cot.renglones.map((r, i) => (
@@ -162,6 +164,7 @@ export function CotizacionPDF({ cot, sucursales }: { cot: CotizacionCompleta; su
               </Text>
             )}
             <Text style={s.cPrecio}>{fmt(r.PrecioUnitario, m)}</Text>
+            <Text style={s.cDescLinea}>{Number(r.DescuentoPorcentaje) > 0 ? `${Number(r.DescuentoPorcentaje)}%` : '—'}</Text>
             <Text style={s.cImporte}>{fmt(r.Importe, m)}</Text>
           </View>
         ))}
@@ -200,6 +203,12 @@ export function CotizacionPDF({ cot, sucursales }: { cot: CotizacionCompleta; su
               {textos.map((t, i) => <Text key={i} style={s.notaTexto}>• {t}</Text>)}
             </View>
           ))}
+          {cot.Observaciones && (
+            <View>
+              <Text style={s.notaCat}>Observaciones</Text>
+              <Text style={s.notaTexto}>{cot.Observaciones}</Text>
+            </View>
+          )}
           <Text style={[s.notaTexto, { marginTop: 4 }]}>Los precios mostrados incluyen IVA. Precios sujetos a cambio sin previo aviso.</Text>
         </View>
 

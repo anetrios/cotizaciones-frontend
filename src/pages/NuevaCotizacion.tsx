@@ -17,6 +17,7 @@ interface RenglonForm {
   CodigoSnapshot: string | null; Descripcion: string;
   PrecioUnitario: number; Cantidad: number;
   UnidadCobro: string | null; NumeroPeriodos: number;
+  DescuentoPorcentaje: number;
 }
 const ETQ_UNIDAD: Record<string, string> = { DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza' };
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -47,6 +48,7 @@ export default function NuevaCotizacion() {
   const [condEntrega, setCondEntrega] = useState('');
   const [anticipoPct, setAnticipoPct] = useState<number | ''>('');
   const [formaSaldo, setFormaSaldo] = useState('');
+  const [observaciones, setObservaciones] = useState('');
   const [descuento, setDescuento] = useState(0);
   const [ivaPct, setIvaPct] = useState(16);
   const [pin, setPin] = useState('');
@@ -85,6 +87,7 @@ export default function NuevaCotizacion() {
         setCondEntrega(cot.CondicionesEntrega ?? '');
         setAnticipoPct(cot.AnticipoPorcentaje ?? '');
         setFormaSaldo(cot.FormaLiquidacionSaldo ?? '');
+        setObservaciones(cot.Observaciones ?? '');
         setDescuento(Number(cot.DescuentoPorcentaje));
         const baseGravable = Number(cot.Subtotal) - Number(cot.DescuentoMonto);
         setIvaPct(baseGravable > 0 ? Math.round((Number(cot.IVA) / baseGravable) * 100) : 16);
@@ -92,6 +95,7 @@ export default function NuevaCotizacion() {
           key: uid(), IdArticuloRenta: r.IdArticuloRenta, IdArticuloVenta: r.IdArticuloVenta, IdServicio: r.IdServicio,
           CodigoSnapshot: r.CodigoSnapshot, Descripcion: r.Descripcion, PrecioUnitario: Number(r.PrecioUnitario),
           Cantidad: Number(r.Cantidad), UnidadCobro: r.UnidadCobro, NumeroPeriodos: Number(r.NumeroPeriodos) || 1,
+          DescuentoPorcentaje: Number(r.DescuentoPorcentaje) || 0,
         })));
       } catch (e) {
         mostrar(mensajeError(e), 'error');
@@ -122,7 +126,9 @@ export default function NuevaCotizacion() {
   const totales = useMemo(() => {
     const conImporte = renglones.map((r) => {
       const per = tipo === 'RENTA' ? (r.NumeroPeriodos || 1) : 1;
-      return { ...r, Importe: r2(r.Cantidad * per * r.PrecioUnitario) };
+      const bruto = r2(r.Cantidad * per * r.PrecioUnitario);
+      const descLinea = r2(bruto * ((r.DescuentoPorcentaje || 0) / 100));
+      return { ...r, Importe: r2(bruto - descLinea) };
     });
     const subtotal = r2(conImporte.reduce((a, r) => a + r.Importe, 0));
     const descMonto = r2(subtotal * (descuento / 100));
@@ -133,7 +139,7 @@ export default function NuevaCotizacion() {
     return { conImporte, subtotal, descMonto, iva, total, anticipo };
   }, [renglones, tipo, descuento, ivaPct, anticipoPct]);
 
-  const requierePin = descuento > umbralPin;
+  const requierePin = descuento > umbralPin || renglones.some((r) => (r.DescuentoPorcentaje || 0) > umbralPin);
 
   const actualizarRenglon = (key: string, campo: keyof RenglonForm, valor: unknown) =>
     setRenglones((prev) => prev.map((r) => (r.key === key ? { ...r, [campo]: valor } : r)));
@@ -163,6 +169,7 @@ export default function NuevaCotizacion() {
         CondicionPago: condPago, DiasCredito: condPago === 'CREDITO' ? Number(diasCredito) : null,
         AnticipoPorcentaje: tipo === 'VENTA' && anticipoPct !== '' ? Number(anticipoPct) : null,
         FormaLiquidacionSaldo: tipo === 'VENTA' ? (formaSaldo || null) : null,
+        Observaciones: observaciones || null,
         DescuentoPorcentaje: descuento, IVAPorcentaje: ivaPct,
         PinSupervisor: requierePin ? pin : null,
         renglones: renglones.map((r, i) => ({
@@ -170,6 +177,7 @@ export default function NuevaCotizacion() {
           IdServicio: r.IdServicio ?? null, CodigoSnapshot: r.CodigoSnapshot, Descripcion: r.Descripcion,
           PrecioUnitario: r.PrecioUnitario, Cantidad: r.Cantidad,
           UnidadCobro: r.UnidadCobro, NumeroPeriodos: tipo === 'RENTA' ? r.NumeroPeriodos : 1,
+          DescuentoPorcentaje: r.DescuentoPorcentaje || 0,
         })),
       };
       if (editando) {
@@ -251,6 +259,7 @@ export default function NuevaCotizacion() {
                       <th>Descripción</th><th style={{ width: 70 }}>Cant.</th>
                       {tipo === 'RENTA' && <th style={{ width: 130 }}>Periodo</th>}
                       <th style={{ width: 110 }}>P. Unit.</th>
+                      <th style={{ width: 90 }}>Desc. %</th>
                       <th className="der" style={{ width: 110 }}>Importe</th><th></th>
                     </tr>
                   </thead>
@@ -276,6 +285,8 @@ export default function NuevaCotizacion() {
                         )}
                         <td><input className="input nc-mini" style={{ width: 96 }} type="number" min={0} step="any" value={r.PrecioUnitario}
                           onChange={(e) => actualizarRenglon(r.key, 'PrecioUnitario', Number(e.target.value))} /></td>
+                        <td><input className="input nc-mini" type="number" min={0} max={100} step="any" value={r.DescuentoPorcentaje}
+                          onChange={(e) => actualizarRenglon(r.key, 'DescuentoPorcentaje', Math.min(100, Math.max(0, Number(e.target.value))))} /></td>
                         <td className="der num" style={{ fontWeight: 600 }}>{moneda(r.Importe, moneda_)}</td>
                         <td><button className="btn btn-fantasma btn-sm" style={{ color: 'var(--error)' }} onClick={() => quitarRenglon(r.key)}>✕</button></td>
                       </tr>
@@ -364,6 +375,17 @@ export default function NuevaCotizacion() {
                   </div>
                 </>
               )}
+            </div>
+          </section>
+
+          {/* Observaciones */}
+          <section className="card card-cuerpo">
+            <h3 className="nc-seccion">5 · Observaciones</h3>
+            <div className="campo">
+              <label>Notas u observaciones adicionales</label>
+              <textarea className="textarea" rows={4} maxLength={1000} value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Cualquier indicación adicional para esta cotización…" />
             </div>
           </section>
         </div>
@@ -465,18 +487,18 @@ function ModalConcepto({ tipo, onCerrar, onElegir }: {
     if (tipo === 'RENTA') onElegir({
       key: uid(), IdArticuloRenta: a.IdArticuloRenta as number, CodigoSnapshot: a.Codigo as string,
       Descripcion: a.Descripcion as string, PrecioUnitario: a.Precio as number, Cantidad: 1,
-      UnidadCobro: a.UnidadCobro as string, NumeroPeriodos: 1,
+      UnidadCobro: a.UnidadCobro as string, NumeroPeriodos: 1, DescuentoPorcentaje: 0,
     });
     else onElegir({
       key: uid(), IdArticuloVenta: a.IdArticuloVenta as number, CodigoSnapshot: a.Codigo as string,
       Descripcion: a.Descripcion as string, PrecioUnitario: a.Precio as number, Cantidad: 1,
-      UnidadCobro: null, NumeroPeriodos: 1,
+      UnidadCobro: null, NumeroPeriodos: 1, DescuentoPorcentaje: 0,
     });
   };
   const elegirServicio = (sv: Record<string, unknown>) => onElegir({
     key: uid(), IdServicio: sv.IdServicio as number, CodigoSnapshot: sv.Codigo as string,
     Descripcion: sv.Descripcion as string, PrecioUnitario: sv.Precio as number, Cantidad: 1,
-    UnidadCobro: sv.UnidadCobro as string, NumeroPeriodos: 1,
+    UnidadCobro: sv.UnidadCobro as string, NumeroPeriodos: 1, DescuentoPorcentaje: 0,
   });
 
   return (
@@ -502,7 +524,7 @@ function ModalConcepto({ tipo, onCerrar, onElegir }: {
             <button className="btn btn-primario" disabled={!manual.Descripcion}
               onClick={() => onElegir({
                 key: uid(), CodigoSnapshot: null, Descripcion: manual.Descripcion, PrecioUnitario: manual.PrecioUnitario,
-                Cantidad: 1, UnidadCobro: tipo === 'RENTA' ? 'DIA' : null, NumeroPeriodos: 1,
+                Cantidad: 1, UnidadCobro: tipo === 'RENTA' ? 'DIA' : null, NumeroPeriodos: 1, DescuentoPorcentaje: 0,
               })}>Agregar</button>
           </div>
         </div>

@@ -130,14 +130,22 @@ export default function Dashboard() {
       <div className="card card-cuerpo" style={{ marginTop: 16 }}>
         <h3 style={{ marginBottom: 14, fontSize: 16 }}>Cotizaciones por usuario</h3>
         {data.porUsuario.length ? (
-          <ResponsiveContainer width="100%" height={Math.max(120, data.porUsuario.length * 42)}>
-            <BarChart data={data.porUsuario} layout="vertical" margin={{ left: 24 }}>
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-              <YAxis type="category" dataKey="Usuario" width={120} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="Total" name="Cotizaciones" fill="#F5B301" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tabla">
+              <thead>
+                <tr><th>Usuario</th><th className="der">Cotizaciones</th><th className="der">Monto cotizado</th></tr>
+              </thead>
+              <tbody>
+                {data.porUsuario.map((u) => (
+                  <tr key={u.IdUsuario}>
+                    <td>{u.Usuario}</td>
+                    <td className="der num">{u.Total}</td>
+                    <td className="der num" style={{ fontWeight: 600 }}>{moneda(u.Monto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : <p className="texto-suave">Sin datos todavía.</p>}
       </div>
     </Layout>

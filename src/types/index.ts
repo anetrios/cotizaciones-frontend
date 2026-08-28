@@ -42,7 +42,8 @@ export interface Renglon {
   IdRenglon?: number; Orden?: number;
   IdArticuloRenta?: number | null; IdArticuloVenta?: number | null; IdServicio?: number | null;
   CodigoSnapshot: string | null; Descripcion: string; PrecioUnitario: number;
-  Cantidad: number; UnidadCobro: string | null; NumeroPeriodos: number; Importe: number;
+  Cantidad: number; UnidadCobro: string | null; NumeroPeriodos: number;
+  DescuentoPorcentaje: number; Importe: number;
 }
 
 export interface CotizacionResumen {
@@ -57,6 +58,7 @@ export interface CotizacionCompleta extends CotizacionResumen {
   TipoCambio: number | null; TiempoEntrega: string | null; Garantia: string | null;
   CondicionesEntrega: string | null; CondicionPago: 'CONTADO' | 'CREDITO'; DiasCredito: number | null;
   AnticipoPorcentaje: number | null; AnticipoMonto: number | null; FormaLiquidacionSaldo: string | null;
+  Observaciones: string | null;
   DescuentoPorcentaje: number;
   ClienteComercial: string | null; ClienteRFC: string | null; ClienteContacto: string | null;
   ClienteTelefono: string | null; ClienteEmail: string | null; ClienteDireccion: string | null;

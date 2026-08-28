@@ -271,6 +271,7 @@ export default function CotizacionDetalle() {
                   <th className="der">Cant.</th>
                   {esRenta && <th className="der">Periodo</th>}
                   <th className="der">P. unitario</th>
+                  <th className="der">Desc.</th>
                   <th className="der">Importe</th>
                 </tr>
               </thead>
@@ -287,6 +288,7 @@ export default function CotizacionDetalle() {
                       </td>
                     )}
                     <td className="der num">{moneda(r.PrecioUnitario, m)}</td>
+                    <td className="der num">{Number(r.DescuentoPorcentaje) > 0 ? `${Number(r.DescuentoPorcentaje)}%` : '—'}</td>
                     <td className="der num" style={{ fontWeight: 600 }}>{moneda(r.Importe, m)}</td>
                   </tr>
                 ))}
@@ -351,6 +353,14 @@ export default function CotizacionDetalle() {
                 <ul>{textos.map((t, i) => <li key={i}>{t}</li>)}</ul>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Observaciones */}
+        {cot.Observaciones && (
+          <div className="doc-seccion doc-notas">
+            <h4 className="doc-titulo">Observaciones</h4>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{cot.Observaciones}</p>
           </div>
         )}
       </div>
