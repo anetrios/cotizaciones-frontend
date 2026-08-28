@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
+import { Modal } from '../components/ui/Modal';
+import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha, estatusVisible } from '../components/ui/UI';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { cotizacionesApi } from '../api/cotizaciones';
 import { metaApi } from '../api/meta';
 import { mensajeError } from '../api/client';
 import { descargarPDF } from '../pdf/descargar';
-import { ETIQUETA_UNIDAD } from '../types';
-import type { CotizacionCompleta, SucursalConContactos, EstatusCotizacion } from '../types';
+import { ETIQUETA_UNIDAD, ETIQUETA_MOTIVO_NO_CONCRECION } from '../types';
+import type { CotizacionCompleta, SucursalConContactos, EstatusCotizacion, MotivoNoConcrecion } from '../types';
 
 const VisorPDF = lazy(() => import('../pdf/VisorPDF').then((m) => ({ default: m.VisorPDF })));
 
@@ -19,20 +20,20 @@ const ETIQUETA_SALDO: Record<string, string> = {
   CONTRA_ENTREGA: 'Contra entrega',
 };
 
-/** Transiciones permitidas de estatus (misma regla que valida el backend). */
-const SIGUIENTES: Record<EstatusCotizacion, EstatusCotizacion[]> = {
-  BORRADOR: ['ENVIADA'],
-  ENVIADA: ['APROBADA', 'RECHAZADA', 'VENCIDA'],
-  APROBADA: [],
-  RECHAZADA: ['ENVIADA'],
-  VENCIDA: ['ENVIADA'],
-};
+/** Acciones de decisión disponibles — Vencida nunca se marca a mano, la calcula el sistema. */
+const BOTONES_DECISION: Array<{ valor: 'PENDIENTE' | 'CONCRETADA' | 'NO_CONCRETADA'; etiqueta: string; clase: string }> = [
+  { valor: 'PENDIENTE', etiqueta: 'Pendiente de respuesta', clase: 'btn-carbon' },
+  { valor: 'CONCRETADA', etiqueta: 'Concretada', clase: 'btn-exito' },
+  { valor: 'NO_CONCRETADA', etiqueta: 'No concretada', clase: 'btn-peligro' },
+];
+
+const OPCIONES_MOTIVO_NO_CONCRECION = Object.entries(ETIQUETA_MOTIVO_NO_CONCRECION) as Array<[MotivoNoConcrecion, string]>;
 
 export default function CotizacionDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { mostrar } = useToast();
-  const { puedeEscribir } = useAuth();
+  const { puedeEscribir, esAdmin, usuario } = useAuth();
 
   const [cot, setCot] = useState<CotizacionCompleta | null>(null);
   const [sucursales, setSucursales] = useState<SucursalConContactos[]>([]);
@@ -41,6 +42,9 @@ export default function CotizacionDetalle() {
   const [descargando, setDescargando] = useState(false);
   const [cambiando, setCambiando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  const [modalNoConcrecion, setModalNoConcrecion] = useState(false);
+  const [motivoNoConcrecion, setMotivoNoConcrecion] = useState<MotivoNoConcrecion | ''>('');
+  const [detalleNoConcrecion, setDetalleNoConcrecion] = useState('');
 
   const cargar = useCallback(async () => {
     if (!id) return;
@@ -85,11 +89,11 @@ export default function CotizacionDetalle() {
     }
   };
 
-  const cambiarEstatus = async (nuevo: EstatusCotizacion) => {
+  const cambiarEstatus = async (nuevo: EstatusCotizacion, motivo?: MotivoNoConcrecion, detalle?: string) => {
     if (!cot) return;
     setCambiando(true);
     try {
-      const actualizada = await cotizacionesApi.cambiarEstatus(cot.IdCotizacion, nuevo);
+      const actualizada = await cotizacionesApi.cambiarEstatus(cot.IdCotizacion, nuevo, motivo, detalle);
       setCot({ ...cot, ...actualizada });
       mostrar('Estatus actualizado', 'exito');
     } catch (e) {
@@ -99,12 +103,21 @@ export default function CotizacionDetalle() {
     }
   };
 
+  const abrirModalNoConcrecion = () => { setMotivoNoConcrecion(''); setDetalleNoConcrecion(''); setModalNoConcrecion(true); };
+
+  const confirmarNoConcrecion = async () => {
+    if (!motivoNoConcrecion) return;
+    await cambiarEstatus('NO_CONCRETADA', motivoNoConcrecion, detalleNoConcrecion);
+    setModalNoConcrecion(false);
+  };
+
   if (cargando) return <Layout titulo="Cotización"><Spinner /></Layout>;
   if (!cot) return null;
 
   const m = cot.Moneda;
   const esRenta = cot.Tipo === 'RENTA';
-  const siguientes = SIGUIENTES[cot.Estatus] ?? [];
+  const estatusMostrado = estatusVisible(cot.Estatus, cot.Fecha, cot.VigenciaDias);
+  const puedeDecidir = esAdmin || (puedeEscribir && usuario?.IdUsuario === cot.IdUsuario);
   const notasPorCategoria = cot.notas.reduce<Record<string, string[]>>((acc, n) => {
     (acc[n.Categoria] ??= []).push(n.Texto);
     return acc;
@@ -135,30 +148,82 @@ export default function CotizacionDetalle() {
     >
       {/* Barra de estatus */}
       <div className="card doc-barra">
-        <div className="flex gap-12 items-center wrap">
-          <BadgeTipo t={cot.Tipo} />
-          <BadgeEstatus e={cot.Estatus} />
-          <span className="texto-suave">
-            Elaborada por {cot.Usuario} · Sucursal {cot.Sucursal} · Vigencia {cot.VigenciaDias} días
-          </span>
-        </div>
-        {puedeEscribir && siguientes.length > 0 && (
-          <div className="flex gap-8 wrap">
-            {siguientes.map((s) => (
-              <button
-                key={s}
-                className={`btn btn-sm ${s === 'APROBADA' ? 'btn-exito' : s === 'RECHAZADA' ? 'btn-peligro' : 'btn-carbon'}`}
-                disabled={cambiando}
-                onClick={() => cambiarEstatus(s)}
-              >
-                {s === 'ENVIADA' ? 'Marcar enviada'
-                  : s === 'APROBADA' ? 'Aprobar'
-                  : s === 'RECHAZADA' ? 'Rechazar' : 'Marcar vencida'}
-              </button>
-            ))}
+        <div className="flex-col gap-6">
+          <div className="flex gap-12 items-center wrap">
+            <BadgeTipo t={cot.Tipo} />
+            <span className="texto-suave">Estado:</span>
+            <BadgeEstatus e={estatusMostrado} />
+            <span className="texto-suave">
+              Elaborada por {cot.Usuario} · Sucursal {cot.Sucursal} · Vigencia {cot.VigenciaDias} días
+            </span>
           </div>
+          {cot.Estatus === 'NO_CONCRETADA' && cot.MotivoNoConcrecion && (
+            <span className="texto-suave">
+              Motivo: {ETIQUETA_MOTIVO_NO_CONCRECION[cot.MotivoNoConcrecion]}
+              {cot.MotivoNoConcrecionDetalle ? ` — ${cot.MotivoNoConcrecionDetalle}` : ''}
+            </span>
+          )}
+        </div>
+        {cot.Estatus === 'BORRADOR' ? (
+          puedeEscribir && (
+            <div className="flex gap-8 wrap">
+              <button className="btn btn-sm btn-carbon" disabled={cambiando} onClick={() => cambiarEstatus('ENVIADA')}>
+                Marcar enviada
+              </button>
+            </div>
+          )
+        ) : (
+          puedeDecidir && (
+            <div className="flex gap-8 wrap">
+              {BOTONES_DECISION.map((b) => (
+                <button
+                  key={b.valor}
+                  className={`btn btn-sm ${b.clase}`}
+                  disabled={cambiando || cot.Estatus === b.valor}
+                  onClick={() => (b.valor === 'NO_CONCRETADA' ? abrirModalNoConcrecion() : cambiarEstatus(b.valor))}
+                >
+                  {b.etiqueta}
+                </button>
+              ))}
+            </div>
+          )
         )}
       </div>
+
+      {modalNoConcrecion && (
+        <Modal
+          titulo="Marcar como no concretada"
+          onCerrar={() => setModalNoConcrecion(false)}
+          pie={<>
+            <button className="btn btn-secundario" onClick={() => setModalNoConcrecion(false)}>Cancelar</button>
+            <button
+              className="btn btn-peligro"
+              disabled={cambiando || !motivoNoConcrecion || (motivoNoConcrecion === 'OTRO' && !detalleNoConcrecion.trim())}
+              onClick={confirmarNoConcrecion}
+            >
+              {cambiando ? 'Guardando…' : 'Confirmar'}
+            </button>
+          </>}
+        >
+          <div className="campo">
+            <label htmlFor="motivo-no-concrecion">Motivo</label>
+            <select id="motivo-no-concrecion" className="select" value={motivoNoConcrecion}
+              onChange={(e) => setMotivoNoConcrecion(e.target.value as MotivoNoConcrecion)}>
+              <option value="">— Selecciona —</option>
+              {OPCIONES_MOTIVO_NO_CONCRECION.map(([valor, etiqueta]) => (
+                <option key={valor} value={valor}>{etiqueta}</option>
+              ))}
+            </select>
+          </div>
+          {motivoNoConcrecion === 'OTRO' && (
+            <div className="campo" style={{ marginTop: 14 }}>
+              <label htmlFor="detalle-no-concrecion">Especifica el motivo<span className="req"> *</span></label>
+              <textarea id="detalle-no-concrecion" className="textarea" value={detalleNoConcrecion}
+                onChange={(e) => setDetalleNoConcrecion(e.target.value)} />
+            </div>
+          )}
+        </Modal>
+      )}
 
       {/* Documento */}
       <div className="card doc">

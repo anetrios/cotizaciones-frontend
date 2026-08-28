@@ -11,7 +11,7 @@ const boolChip = (etq: string) => (v: unknown) => v ? <span className="chip warn
 
 export const CFG_CLIENTES: RecursoConfig = {
   titulo: 'Clientes', nombreSingular: 'Cliente', ruta: 'clientes', idClave: 'IdCliente',
-  buscar: true, textoEliminar: 'desactivar',
+  buscar: true, textoEliminar: 'desactivar', paginado: true,
   campos: [
     { clave: 'RazonSocial', etiqueta: 'Razón social', tipo: 'texto', requerido: true, ancho: 'completo' },
     { clave: 'NombreComercial', etiqueta: 'Nombre comercial', tipo: 'texto' },
@@ -35,7 +35,7 @@ export const CFG_CLIENTES: RecursoConfig = {
 
 export const CFG_ART_RENTA: RecursoConfig = {
   titulo: 'Artículos de Renta', nombreSingular: 'Artículo', ruta: 'articulos-renta', idClave: 'IdArticuloRenta',
-  buscar: true, textoEliminar: 'desactivar',
+  buscar: true, textoEliminar: 'desactivar', paginado: true,
   campos: [
     { clave: 'Codigo', etiqueta: 'Código', tipo: 'texto', requerido: true },
     { clave: 'Descripcion', etiqueta: 'Descripción', tipo: 'texto', requerido: true, ancho: 'completo' },
@@ -59,7 +59,7 @@ export const CFG_ART_RENTA: RecursoConfig = {
 
 export const CFG_ART_VENTA: RecursoConfig = {
   titulo: 'Artículos de Venta', nombreSingular: 'Artículo', ruta: 'articulos-venta', idClave: 'IdArticuloVenta',
-  buscar: true, textoEliminar: 'desactivar',
+  buscar: true, textoEliminar: 'desactivar', paginado: true,
   campos: [
     { clave: 'Codigo', etiqueta: 'Código', tipo: 'texto', requerido: true },
     { clave: 'Descripcion', etiqueta: 'Descripción', tipo: 'texto', requerido: true, ancho: 'completo' },
@@ -77,7 +77,7 @@ export const CFG_ART_VENTA: RecursoConfig = {
 
 export const CFG_SERVICIOS: RecursoConfig = {
   titulo: 'Servicios', nombreSingular: 'Servicio', ruta: 'servicios', idClave: 'IdServicio',
-  buscar: true, textoEliminar: 'desactivar',
+  buscar: true, textoEliminar: 'desactivar', paginado: true,
   campos: [
     { clave: 'Codigo', etiqueta: 'Código', tipo: 'texto', requerido: true },
     { clave: 'Descripcion', etiqueta: 'Descripción', tipo: 'texto', requerido: true, ancho: 'completo' },

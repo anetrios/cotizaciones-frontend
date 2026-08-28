@@ -1,6 +1,7 @@
 export type Rol = 'ADMIN' | 'VENDEDOR' | 'CONSULTA';
 export type TipoCotizacion = 'RENTA' | 'VENTA';
-export type EstatusCotizacion = 'BORRADOR' | 'ENVIADA' | 'APROBADA' | 'RECHAZADA' | 'VENCIDA';
+export type EstatusCotizacion = 'BORRADOR' | 'ENVIADA' | 'PENDIENTE' | 'CONCRETADA' | 'NO_CONCRETADA' | 'VENCIDA';
+export type MotivoNoConcrecion = 'PRECIO' | 'COMPETENCIA' | 'PRESUPUESTO_CLIENTE' | 'REQUERIMIENTOS' | 'FALTA_EQUIPO' | 'POSTERGACION_PROYECTO' | 'OTRO';
 
 export interface UsuarioSesion {
   IdUsuario: number; Nombre: string; Email: string; Rol: Rol; IdSucursal: number | null;
@@ -48,7 +49,7 @@ export interface CotizacionResumen {
   IdCotizacion: number; Folio: string; Tipo: TipoCotizacion; Estatus: EstatusCotizacion;
   Fecha: string; VigenciaDias: number; Moneda: string;
   Subtotal: number; DescuentoMonto: number; IVA: number; Total: number;
-  Cliente: string; Usuario: string; Sucursal: string;
+  Cliente: string; Usuario: string; UsuarioEmail: string | null; Sucursal: string;
 }
 
 export interface CotizacionCompleta extends CotizacionResumen {
@@ -60,20 +61,28 @@ export interface CotizacionCompleta extends CotizacionResumen {
   ClienteComercial: string | null; ClienteRFC: string | null; ClienteContacto: string | null;
   ClienteTelefono: string | null; ClienteEmail: string | null; ClienteDireccion: string | null;
   SucursalDireccion: string | null;
+  MotivoNoConcrecion: MotivoNoConcrecion | null; MotivoNoConcrecionDetalle: string | null;
   renglones: Renglon[];
   notas: Array<{ IdCotizacionNota: number; Categoria: string; Texto: string; Orden: number }>;
 }
 
 export interface DashboardData {
   resumen: {
-    Total: number; Borradores: number; Enviadas: number; Aprobadas: number; Rechazadas: number;
-    TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalAprobado: number;
+    Total: number; Borradores: number; Enviadas: number; Pendientes: number; Concretadas: number; NoConcretadas: number;
+    TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalConcretado: number;
   };
   porMes: Array<{ Mes: string; Total: number; Monto: number }>;
+  porUsuario: Array<{ IdUsuario: number; Usuario: string; Email: string | null; Total: number; Monto: number }>;
 }
 
 export const ETIQUETA_ESTATUS: Record<EstatusCotizacion, string> = {
-  BORRADOR: 'Borrador', ENVIADA: 'Enviada', APROBADA: 'Aprobada', RECHAZADA: 'Rechazada', VENCIDA: 'Vencida',
+  BORRADOR: 'Borrador', ENVIADA: 'Enviada', PENDIENTE: 'Pendiente de respuesta', CONCRETADA: 'Concretada',
+  NO_CONCRETADA: 'No concretada', VENCIDA: 'Vencida',
+};
+export const ETIQUETA_MOTIVO_NO_CONCRECION: Record<MotivoNoConcrecion, string> = {
+  PRECIO: 'Precio', COMPETENCIA: 'Competencia', PRESUPUESTO_CLIENTE: 'Presupuesto del cliente',
+  REQUERIMIENTOS: 'Requerimientos', FALTA_EQUIPO: 'Falta de equipos',
+  POSTERGACION_PROYECTO: 'Postergación del Proyecto', OTRO: 'Otro',
 };
 export const ETIQUETA_UNIDAD: Record<string, string> = {
   DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza', HORA: 'hora',

@@ -7,6 +7,15 @@ export function crearRecursoApi(ruta: string) {
       const { data } = await api.get(`/${ruta}`, { params });
       return data.datos as any[];
     },
+    async listarPaginado(params: Record<string, unknown> = {}) {
+      const { data } = await api.get(`/${ruta}`, { params });
+      return {
+        datos: data.datos as Record<string, unknown>[],
+        total: data.total as number,
+        pagina: data.pagina as number,
+        porPagina: data.porPagina as number,
+      };
+    },
     async obtener(id: number) {
       const { data } = await api.get(`/${ruta}/${id}`);
       return data.datos;

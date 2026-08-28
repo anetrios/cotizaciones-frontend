@@ -8,7 +8,10 @@ export const cotizacionesApi = {
   },
   async listar(filtros: Record<string, unknown> = {}) {
     const { data } = await api.get('/cotizaciones', { params: filtros });
-    return { datos: data.datos as CotizacionResumen[], total: data.total as number, pagina: data.pagina as number };
+    return {
+      datos: data.datos as CotizacionResumen[], total: data.total as number,
+      pagina: data.pagina as number, porPagina: data.porPagina as number,
+    };
   },
   async obtener(id: number) {
     const { data } = await api.get(`/cotizaciones/${id}`);
@@ -25,12 +28,12 @@ export const cotizacionesApi = {
   async eliminar(id: number) {
     await api.delete(`/cotizaciones/${id}`);
   },
-  async cambiarEstatus(id: number, Estatus: string) {
-    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, { Estatus });
+  async cambiarEstatus(id: number, Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string) {
+    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, { Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle });
     return data.datos as CotizacionCompleta;
   },
-  async dashboard() {
-    const { data } = await api.get('/cotizaciones/dashboard');
+  async dashboard(filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
+    const { data } = await api.get('/cotizaciones/dashboard', { params: filtros });
     return data.datos as DashboardData;
   },
 };

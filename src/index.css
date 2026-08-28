@@ -29,9 +29,10 @@
   --info:    #2563EB; --info-bg:    #DBEAFE;
 
   --est-BORRADOR:#6B7280; --est-BORRADOR-bg:#EEF0F2;
-  --est-ENVIADA:#2563EB;  --est-ENVIADA-bg:#DBEAFE;
-  --est-APROBADA:#16A34A; --est-APROBADA-bg:#DCFCE7;
-  --est-RECHAZADA:#DC2626;--est-RECHAZADA-bg:#FEE2E2;
+  --est-ENVIADA:#D97706; --est-ENVIADA-bg:#FEF3DC;
+  --est-PENDIENTE:#2563EB; --est-PENDIENTE-bg:#DBEAFE;
+  --est-CONCRETADA:#16A34A; --est-CONCRETADA-bg:#DCFCE7;
+  --est-NO_CONCRETADA:#DC2626;--est-NO_CONCRETADA-bg:#FEE2E2;
   --est-VENCIDA:#6B7280;  --est-VENCIDA-bg:#EEF0F2;
 
   --display: 'Archivo', system-ui, sans-serif;
@@ -92,8 +93,9 @@ h1,h2,h3,h4 { font-family: var(--display); font-weight: 700; line-height: 1.15; 
 .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .badge-BORRADOR { color: var(--est-BORRADOR); background: var(--est-BORRADOR-bg); }
 .badge-ENVIADA { color: var(--est-ENVIADA); background: var(--est-ENVIADA-bg); }
-.badge-APROBADA { color: var(--est-APROBADA); background: var(--est-APROBADA-bg); }
-.badge-RECHAZADA { color: var(--est-RECHAZADA); background: var(--est-RECHAZADA-bg); }
+.badge-PENDIENTE { color: var(--est-PENDIENTE); background: var(--est-PENDIENTE-bg); }
+.badge-CONCRETADA { color: var(--est-CONCRETADA); background: var(--est-CONCRETADA-bg); }
+.badge-NO_CONCRETADA { color: var(--est-NO_CONCRETADA); background: var(--est-NO_CONCRETADA-bg); }
 .badge-VENCIDA { color: var(--est-VENCIDA); background: var(--est-VENCIDA-bg); }
 .badge-tipo { display: inline-flex; padding: 2px 8px; border-radius: var(--radio-sm); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--borde-fuerte); color: var(--texto-medio); }
 .badge-tipo.RENTA { color: var(--amarillo-osc); background: var(--amarillo-suave); border-color: transparent; }

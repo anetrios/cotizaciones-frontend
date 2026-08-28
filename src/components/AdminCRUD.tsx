@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Layout } from './Layout';
 import { Modal } from './ui/Modal';
 import { Spinner, Vacio } from './ui/UI';
+import { Paginador } from './ui/Paginador';
 import { useToast } from './ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { crearRecursoApi } from '../api/recurso';
@@ -17,7 +18,10 @@ export interface RecursoConfig {
   buscar?: boolean;
   soloAdmin?: boolean;
   textoEliminar?: string;   // ej: 'desactivar'
+  paginado?: boolean;
 }
+
+const POR_PAGINA = 20;
 
 export function AdminCRUD({ config }: { config: RecursoConfig }) {
   const api = useMemo(() => crearRecursoApi(config.ruta), [config.ruta]);
@@ -31,6 +35,8 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
   const [editando, setEditando] = useState<Record<string, unknown> | null>(null);
   const [nuevo, setNuevo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const opcionesRecurso = useOpcionesRecurso(config.campos);
   const columnas = config.campos.filter((c) => !c.soloForm);
@@ -39,11 +45,18 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      setFilas(await api.listar(config.buscar ? { busqueda } : {}));
+      const filtros = config.buscar ? { busqueda } : {};
+      if (config.paginado) {
+        const { datos, total } = await api.listarPaginado({ ...filtros, pagina, porPagina: POR_PAGINA });
+        setFilas(datos); setTotal(total);
+      } else {
+        setFilas(await api.listar(filtros));
+      }
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setCargando(false); }
-  }, [api, busqueda, config.buscar, mostrar]);
+  }, [api, busqueda, pagina, config.buscar, config.paginado, mostrar]);
 
+  useEffect(() => { setPagina(1); }, [busqueda]);
   useEffect(() => { const t = setTimeout(cargar, config.buscar ? 300 : 0); return () => clearTimeout(t); }, [cargar]);
 
   const abrirNuevo = () => {
@@ -126,6 +139,7 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
           </div>
         )}
       </div>
+      {config.paginado && <Paginador pagina={pagina} total={total} porPagina={POR_PAGINA} onCambiar={setPagina} />}
 
       {editando && (
         <Modal titulo={nuevo ? `Nuevo ${config.nombreSingular.toLowerCase()}` : `Editar ${config.nombreSingular.toLowerCase()}`}

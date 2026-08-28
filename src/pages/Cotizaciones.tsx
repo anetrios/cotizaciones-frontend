@@ -1,12 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
+import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha, estatusVisible } from '../components/ui/UI';
+import { Paginador } from '../components/ui/Paginador';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { cotizacionesApi } from '../api/cotizaciones';
 import { mensajeError } from '../api/client';
 import type { CotizacionResumen } from '../types';
+
+const POR_PAGINA = 20;
 
 export default function Cotizaciones() {
   const [filas, setFilas] = useState<CotizacionResumen[]>([]);
@@ -14,6 +17,8 @@ export default function Cotizaciones() {
   const [folio, setFolio] = useState('');
   const [estatus, setEstatus] = useState('');
   const [tipo, setTipo] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
   const { mostrar } = useToast();
   const { puedeEscribir } = useAuth();
   const navigate = useNavigate();
@@ -21,12 +26,13 @@ export default function Cotizaciones() {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const { datos } = await cotizacionesApi.listar({ folio, estatus, tipo });
-      setFilas(datos);
+      const { datos, total } = await cotizacionesApi.listar({ folio, estatus, tipo, pagina, porPagina: POR_PAGINA });
+      setFilas(datos); setTotal(total);
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setCargando(false); }
-  }, [folio, estatus, tipo, mostrar]);
+  }, [folio, estatus, tipo, pagina, mostrar]);
 
+  useEffect(() => { setPagina(1); }, [folio, estatus, tipo]);
   useEffect(() => { const t = setTimeout(cargar, 300); return () => clearTimeout(t); }, [cargar]);
 
   return (
@@ -44,8 +50,9 @@ export default function Cotizaciones() {
           <option value="">Todos los estatus</option>
           <option value="BORRADOR">Borrador</option>
           <option value="ENVIADA">Enviada</option>
-          <option value="APROBADA">Aprobada</option>
-          <option value="RECHAZADA">Rechazada</option>
+          <option value="PENDIENTE">Pendiente de respuesta</option>
+          <option value="CONCRETADA">Concretada</option>
+          <option value="NO_CONCRETADA">No concretada</option>
           <option value="VENCIDA">Vencida</option>
         </select>
       </div>
@@ -58,7 +65,7 @@ export default function Cotizaciones() {
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Folio</th><th>Tipo</th><th>Cliente</th><th>Fecha</th>
+                  <th>Folio</th><th>Tipo</th><th>Cliente</th><th>Hecha por</th><th>Fecha</th>
                   <th>Estatus</th><th className="der">Total</th>
                 </tr>
               </thead>
@@ -68,8 +75,12 @@ export default function Cotizaciones() {
                     <td style={{ fontFamily: 'var(--display)', fontWeight: 700 }}>{c.Folio}</td>
                     <td><BadgeTipo t={c.Tipo} /></td>
                     <td>{c.Cliente}</td>
+                    <td>
+                      <div>{c.Usuario}</div>
+                      {c.UsuarioEmail && <div className="texto-suave" style={{ fontSize: 12 }}>{c.UsuarioEmail}</div>}
+                    </td>
                     <td>{fecha(c.Fecha)}</td>
-                    <td><BadgeEstatus e={c.Estatus} /></td>
+                    <td><BadgeEstatus e={estatusVisible(c.Estatus, c.Fecha, c.VigenciaDias)} /></td>
                     <td className="der num" style={{ fontWeight: 600 }}>{moneda(c.Total, c.Moneda)}</td>
                   </tr>
                 ))}
@@ -78,6 +89,7 @@ export default function Cotizaciones() {
           </div>
         )}
       </div>
+      <Paginador pagina={pagina} total={total} porPagina={POR_PAGINA} onCambiar={setPagina} />
     </Layout>
   );
 }
