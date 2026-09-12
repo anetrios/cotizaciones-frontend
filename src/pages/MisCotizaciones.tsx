@@ -233,7 +233,11 @@ export default function MisCotizaciones() {
         </Modal>
       )}
 
-      {modalConcretar && (
+      {modalConcretar && (() => {
+        const faltantes = seleccionArray.filter((c) => !facturasLote[c.IdCotizacion]?.trim());
+        const facturaActual = pasoConcretar < seleccionArray.length
+          ? facturasLote[seleccionArray[pasoConcretar].IdCotizacion] || '' : '';
+        return (
         <Modal
           titulo={
             pasoConcretar < seleccionArray.length
@@ -248,7 +252,7 @@ export default function MisCotizaciones() {
                 {pasoConcretar > 0 && (
                   <button className="btn btn-secundario" onClick={() => setPasoConcretar((p) => p - 1)}>← Anterior</button>
                 )}
-                <button className="btn btn-primario" onClick={() => setPasoConcretar((p) => p + 1)}>
+                <button className="btn btn-primario" disabled={!facturaActual.trim()} onClick={() => setPasoConcretar((p) => p + 1)}>
                   {pasoConcretar === seleccionArray.length - 1 ? 'Revisar →' : 'Siguiente →'}
                 </button>
               </>
@@ -256,7 +260,7 @@ export default function MisCotizaciones() {
               <>
                 <button className="btn btn-secundario" onClick={() => setModalConcretar(false)}>Cancelar</button>
                 <button className="btn btn-secundario" onClick={() => setPasoConcretar((p) => p - 1)}>← Anterior</button>
-                <button className="btn btn-exito" disabled={aplicando} onClick={confirmarConcretarLote}>
+                <button className="btn btn-exito" disabled={aplicando || faltantes.length > 0} onClick={confirmarConcretarLote}>
                   {aplicando ? 'Guardando…' : 'Confirmar'}
                 </button>
               </>
@@ -267,27 +271,29 @@ export default function MisCotizaciones() {
             <div className="campo">
               <label htmlFor="factura-lote">
                 {seleccionArray[pasoConcretar].Folio} · {seleccionArray[pasoConcretar].Cliente}
+                <span className="req"> *</span>
               </label>
               <input
                 id="factura-lote" className="input" autoFocus
-                value={facturasLote[seleccionArray[pasoConcretar].IdCotizacion] || ''}
+                value={facturaActual}
                 onChange={(e) => setFacturasLote((prev) => ({
                   ...prev, [seleccionArray[pasoConcretar].IdCotizacion]: e.target.value,
                 }))}
-                placeholder="Número de factura o contrato — opcional"
+                placeholder="Ej. F-2026-0134"
               />
             </div>
           ) : (
             <ul style={{ paddingLeft: 18, maxHeight: 360, overflowY: 'auto' }}>
               {seleccionArray.map((c) => (
                 <li key={c.IdCotizacion} style={{ marginBottom: 6 }}>
-                  <strong>{c.Folio}</strong> · {c.Cliente} — {facturasLote[c.IdCotizacion]?.trim() || 'sin factura'}
+                  <strong>{c.Folio}</strong> · {c.Cliente} — {facturasLote[c.IdCotizacion]?.trim() || 'falta capturar'}
                 </li>
               ))}
             </ul>
           )}
         </Modal>
-      )}
+        );
+      })()}
 
       {resultado && resultado.fallidas.length > 0 && (
         <Modal titulo="Resultado del cambio de estatus" onCerrar={() => setResultado(null)} pie={

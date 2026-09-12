@@ -254,16 +254,16 @@ export default function CotizacionDetalle() {
           onCerrar={() => setModalFactura(false)}
           pie={<>
             <button className="btn btn-secundario" onClick={() => setModalFactura(false)}>Cancelar</button>
-            <button className="btn btn-exito" disabled={cambiando} onClick={confirmarFactura}>
+            <button className="btn btn-exito" disabled={cambiando || !numeroFacturaInput.trim()} onClick={confirmarFactura}>
               {cambiando ? 'Guardando…' : 'Confirmar'}
             </button>
           </>}
         >
           <div className="campo">
-            <label htmlFor="numero-factura">Número de factura o contrato</label>
+            <label htmlFor="numero-factura">Número de factura o contrato<span className="req"> *</span></label>
             <input id="numero-factura" className="input" value={numeroFacturaInput}
               onChange={(e) => setNumeroFacturaInput(e.target.value)}
-              placeholder="Opcional — puedes dejarlo en blanco" />
+              placeholder="Ej. F-2026-0134" />
           </div>
         </Modal>
       )}
