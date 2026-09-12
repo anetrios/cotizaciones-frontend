@@ -32,6 +32,8 @@ interface ResultadoLote {
 export default function MisCotizaciones() {
   const [filas, setFilas] = useState<CotizacionResumen[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [folio, setFolio] = useState('');
+  const [tipo, setTipo] = useState('');
   const [estatus, setEstatus] = useState('');
   const [pagina, setPagina] = useState(1);
   const [porPagina, setPorPagina] = useState(20);
@@ -54,14 +56,16 @@ export default function MisCotizaciones() {
     if (!usuario) return;
     setCargando(true);
     try {
-      const { datos, total } = await cotizacionesApi.listar({ usuario: usuario.IdUsuario, estatus, pagina, porPagina });
+      const { datos, total } = await cotizacionesApi.listar({
+        usuario: usuario.IdUsuario, folio, tipo, estatus, pagina, porPagina,
+      });
       setFilas(datos); setTotal(total);
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setCargando(false); }
-  }, [usuario, estatus, pagina, porPagina, mostrar]);
+  }, [usuario, folio, tipo, estatus, pagina, porPagina, mostrar]);
 
-  useEffect(() => { setPagina(1); }, [estatus, porPagina]);
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { setPagina(1); }, [folio, tipo, estatus, porPagina]);
+  useEffect(() => { const t = setTimeout(cargar, 300); return () => clearTimeout(t); }, [cargar]);
   useEffect(() => { setSeleccionados(new Set()); }, [filas]);
 
   const todosSeleccionados = filas.length > 0 && filas.every((f) => seleccionados.has(f.IdCotizacion));
@@ -127,6 +131,12 @@ export default function MisCotizaciones() {
   return (
     <Layout titulo="Mis cotizaciones">
       <div className="flex gap-12 wrap" style={{ marginBottom: 16 }}>
+        <input className="input" style={{ maxWidth: 220 }} placeholder="Buscar folio…" value={folio} onChange={(e) => setFolio(e.target.value)} />
+        <select className="select" style={{ maxWidth: 180 }} value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <option value="">Todos los tipos</option>
+          <option value="RENTA">Renta</option>
+          <option value="VENTA">Venta</option>
+        </select>
         <select className="select" style={{ maxWidth: 220 }} value={estatus} onChange={(e) => setEstatus(e.target.value)}>
           <option value="">Todos los estatus</option>
           <option value="BORRADOR">Borrador</option>
@@ -173,7 +183,9 @@ export default function MisCotizaciones() {
               </thead>
               <tbody>
                 {filas.map((c) => (
-                  <tr key={c.IdCotizacion} className="clic" onClick={() => navigate(`/cotizaciones/${c.IdCotizacion}`)}>
+                  <tr key={c.IdCotizacion} className="clic"
+                    onClick={() => navigate(`/cotizaciones/${c.IdCotizacion}`, { state: { from: '/mis-cotizaciones' } })}
+                  >
                     {puedeEscribir && (
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
@@ -269,10 +281,18 @@ export default function MisCotizaciones() {
         >
           {pasoConcretar < seleccionArray.length ? (
             <div className="campo">
-              <label htmlFor="factura-lote">
-                {seleccionArray[pasoConcretar].Folio} · {seleccionArray[pasoConcretar].Cliente}
-                <span className="req"> *</span>
-              </label>
+              <div style={{ padding: 12, marginBottom: 4, background: 'var(--fondo)', borderRadius: 'var(--radio-sm)' }}>
+                <div className="flex items-center gap-8" style={{ marginBottom: 4 }}>
+                  <strong style={{ fontFamily: 'var(--display)', fontSize: 15 }}>{seleccionArray[pasoConcretar].Folio}</strong>
+                  <BadgeTipo t={seleccionArray[pasoConcretar].Tipo} />
+                </div>
+                <div style={{ fontSize: 13, marginBottom: 2 }}>{seleccionArray[pasoConcretar].Cliente}</div>
+                <div className="texto-suave" style={{ fontSize: 12 }}>
+                  {fecha(seleccionArray[pasoConcretar].Fecha)} · Total {moneda(seleccionArray[pasoConcretar].Total, seleccionArray[pasoConcretar].Moneda)}
+                  {' '}· Sucursal {seleccionArray[pasoConcretar].Sucursal}
+                </div>
+              </div>
+              <label htmlFor="factura-lote">Número de factura o contrato<span className="req"> *</span></label>
               <input
                 id="factura-lote" className="input" autoFocus
                 value={facturaActual}
@@ -286,7 +306,8 @@ export default function MisCotizaciones() {
             <ul style={{ paddingLeft: 18, maxHeight: 360, overflowY: 'auto' }}>
               {seleccionArray.map((c) => (
                 <li key={c.IdCotizacion} style={{ marginBottom: 6 }}>
-                  <strong>{c.Folio}</strong> · {c.Cliente} — {facturasLote[c.IdCotizacion]?.trim() || 'falta capturar'}
+                  <strong>{c.Folio}</strong> · {c.Cliente} · {fecha(c.Fecha)} · {moneda(c.Total, c.Moneda)}
+                  {' '}— {facturasLote[c.IdCotizacion]?.trim() || 'falta capturar'}
                 </li>
               ))}
             </ul>

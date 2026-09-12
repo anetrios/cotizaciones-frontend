@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Modal } from '../components/ui/Modal';
 import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha, estatusVisible } from '../components/ui/UI';
@@ -32,6 +32,8 @@ const OPCIONES_MOTIVO_NO_CONCRECION = Object.entries(ETIQUETA_MOTIVO_NO_CONCRECI
 export default function CotizacionDetalle() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const volverA = (location.state as { from?: string } | null)?.from || '/cotizaciones';
   const { mostrar } = useToast();
   const { puedeEscribir, esAdmin, usuario } = useAuth();
 
@@ -57,11 +59,11 @@ export default function CotizacionDetalle() {
       setSucursales(s);
     } catch (e) {
       mostrar(mensajeError(e), 'error');
-      navigate('/cotizaciones');
+      navigate(volverA);
     } finally {
       setCargando(false);
     }
-  }, [id, mostrar, navigate]);
+  }, [id, mostrar, navigate, volverA]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -84,7 +86,7 @@ export default function CotizacionDetalle() {
     try {
       await cotizacionesApi.eliminar(cot.IdCotizacion);
       mostrar('Cotización eliminada', 'exito');
-      navigate('/cotizaciones');
+      navigate(volverA);
     } catch (e) {
       mostrar(mensajeError(e), 'error');
       setEliminando(false);
@@ -137,7 +139,7 @@ export default function CotizacionDetalle() {
       titulo={`Cotización ${cot.Folio}`}
       acciones={
         <div className="flex gap-8 wrap">
-          <button className="btn btn-secundario" onClick={() => navigate('/cotizaciones')}>← Volver</button>
+          <button className="btn btn-secundario" onClick={() => navigate(volverA)}>← Volver</button>
           <button className="btn btn-secundario" onClick={() => setVerPDF(true)}>Vista previa</button>
           {puedeEscribir && (
             <button className="btn btn-secundario" onClick={() => navigate(`/cotizaciones/${cot.IdCotizacion}/editar`)}>

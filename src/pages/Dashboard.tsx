@@ -12,10 +12,11 @@ import type { DashboardData, EstatusCotizacion, MotivoNoConcrecion } from '../ty
 const COLORES = ['#6B7280', '#D97706', '#2563EB', '#16A34A', '#DC2626', '#7C3AED'];
 
 type ModoFecha = 'semana' | 'mes' | 'rango';
-type CampoOrdenUsuario = 'Concretadas' | 'MontoConcretado' | 'Monto' | 'Total';
+type CampoOrdenUsuario = 'Concretadas' | 'PctConcretadas' | 'MontoConcretado' | 'Monto' | 'Total';
 
-const COLUMNAS_USUARIO: Array<{ campo: CampoOrdenUsuario; etiqueta: string; formato: 'num' | 'moneda' }> = [
+const COLUMNAS_USUARIO: Array<{ campo: CampoOrdenUsuario; etiqueta: string; formato: 'num' | 'moneda' | 'porcentaje' }> = [
   { campo: 'Concretadas', etiqueta: 'Cotizaciones concretadas', formato: 'num' },
+  { campo: 'PctConcretadas', etiqueta: '% concretadas', formato: 'porcentaje' },
   { campo: 'MontoConcretado', etiqueta: 'Monto concretado', formato: 'moneda' },
   { campo: 'Monto', etiqueta: 'Monto cotizado', formato: 'moneda' },
   { campo: 'Total', etiqueta: 'Número de cotizaciones', formato: 'num' },
@@ -102,7 +103,10 @@ export default function Dashboard() {
   const cambiarOrden = (campo: CampoOrdenUsuario) => {
     setOrden((o) => (o.campo === campo ? { campo, dir: o.dir === 'desc' ? 'asc' : 'desc' } : { campo, dir: 'desc' }));
   };
-  const porUsuarioOrdenado = [...data.porUsuario].sort((a, b) =>
+  const porUsuarioConPct = data.porUsuario.map((u) => ({
+    ...u, PctConcretadas: u.Total > 0 ? (u.Concretadas / u.Total) * 100 : 0,
+  }));
+  const porUsuarioOrdenado = [...porUsuarioConPct].sort((a, b) =>
     (orden.dir === 'desc' ? 1 : -1) * (b[orden.campo] - a[orden.campo]));
 
   return (
@@ -231,7 +235,9 @@ export default function Dashboard() {
                     <td>{u.Usuario}</td>
                     {COLUMNAS_USUARIO.map((c) => (
                       <td key={c.campo} className="der num" style={{ fontWeight: c.campo === 'MontoConcretado' || c.campo === 'Monto' ? 600 : undefined }}>
-                        {c.formato === 'moneda' ? moneda(u[c.campo]) : u[c.campo]}
+                        {c.formato === 'moneda' ? moneda(u[c.campo])
+                          : c.formato === 'porcentaje' ? `${u[c.campo].toFixed(0)}%`
+                          : u[c.campo]}
                       </td>
                     ))}
                   </tr>

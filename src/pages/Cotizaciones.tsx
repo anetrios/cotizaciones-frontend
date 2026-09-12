@@ -111,7 +111,9 @@ export default function Cotizaciones() {
               </thead>
               <tbody>
                 {filas.map((c) => (
-                  <tr key={c.IdCotizacion} className="clic" onClick={() => navigate(`/cotizaciones/${c.IdCotizacion}`)}>
+                  <tr key={c.IdCotizacion} className="clic"
+                    onClick={() => navigate(`/cotizaciones/${c.IdCotizacion}`, { state: { from: '/cotizaciones' } })}
+                  >
                     <td style={{ fontFamily: 'var(--display)', fontWeight: 700 }}>{c.Folio}</td>
                     <td><BadgeTipo t={c.Tipo} /></td>
                     <td>{c.Cliente}</td>
