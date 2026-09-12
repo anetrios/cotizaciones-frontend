@@ -45,6 +45,8 @@ export default function CotizacionDetalle() {
   const [modalNoConcrecion, setModalNoConcrecion] = useState(false);
   const [motivoNoConcrecion, setMotivoNoConcrecion] = useState<MotivoNoConcrecion | ''>('');
   const [detalleNoConcrecion, setDetalleNoConcrecion] = useState('');
+  const [modalFactura, setModalFactura] = useState(false);
+  const [numeroFacturaInput, setNumeroFacturaInput] = useState('');
 
   const cargar = useCallback(async () => {
     if (!id) return;
@@ -89,11 +91,11 @@ export default function CotizacionDetalle() {
     }
   };
 
-  const cambiarEstatus = async (nuevo: EstatusCotizacion, motivo?: MotivoNoConcrecion, detalle?: string) => {
+  const cambiarEstatus = async (nuevo: EstatusCotizacion, motivo?: MotivoNoConcrecion, detalle?: string, numeroFactura?: string) => {
     if (!cot) return;
     setCambiando(true);
     try {
-      const actualizada = await cotizacionesApi.cambiarEstatus(cot.IdCotizacion, nuevo, motivo, detalle);
+      const actualizada = await cotizacionesApi.cambiarEstatus(cot.IdCotizacion, nuevo, motivo, detalle, numeroFactura);
       setCot({ ...cot, ...actualizada });
       mostrar('Estatus actualizado', 'exito');
     } catch (e) {
@@ -109,6 +111,13 @@ export default function CotizacionDetalle() {
     if (!motivoNoConcrecion) return;
     await cambiarEstatus('NO_CONCRETADA', motivoNoConcrecion, detalleNoConcrecion);
     setModalNoConcrecion(false);
+  };
+
+  const abrirModalFactura = () => { setNumeroFacturaInput(cot?.NumeroFactura || ''); setModalFactura(true); };
+
+  const confirmarFactura = async () => {
+    await cambiarEstatus('CONCRETADA', undefined, undefined, numeroFacturaInput);
+    setModalFactura(false);
   };
 
   if (cargando) return <Layout titulo="Cotización"><Spinner /></Layout>;
@@ -163,6 +172,16 @@ export default function CotizacionDetalle() {
               {cot.MotivoNoConcrecionDetalle ? ` — ${cot.MotivoNoConcrecionDetalle}` : ''}
             </span>
           )}
+          {cot.Estatus === 'CONCRETADA' && (
+            <span className="texto-suave flex items-center gap-6">
+              Número de factura: {cot.NumeroFactura || '—'}
+              {puedeDecidir && (
+                <button className="btn btn-fantasma btn-sm" style={{ padding: '1px 8px' }} onClick={abrirModalFactura}>
+                  Editar
+                </button>
+              )}
+            </span>
+          )}
         </div>
         {cot.Estatus === 'BORRADOR' ? (
           puedeEscribir && (
@@ -180,7 +199,11 @@ export default function CotizacionDetalle() {
                   key={b.valor}
                   className={`btn btn-sm ${b.clase}`}
                   disabled={cambiando || cot.Estatus === b.valor}
-                  onClick={() => (b.valor === 'NO_CONCRETADA' ? abrirModalNoConcrecion() : cambiarEstatus(b.valor))}
+                  onClick={() => (
+                    b.valor === 'NO_CONCRETADA' ? abrirModalNoConcrecion() :
+                    b.valor === 'CONCRETADA' ? abrirModalFactura() :
+                    cambiarEstatus(b.valor)
+                  )}
                 >
                   {b.etiqueta}
                 </button>
@@ -222,6 +245,26 @@ export default function CotizacionDetalle() {
                 onChange={(e) => setDetalleNoConcrecion(e.target.value)} />
             </div>
           )}
+        </Modal>
+      )}
+
+      {modalFactura && (
+        <Modal
+          titulo="Número de factura"
+          onCerrar={() => setModalFactura(false)}
+          pie={<>
+            <button className="btn btn-secundario" onClick={() => setModalFactura(false)}>Cancelar</button>
+            <button className="btn btn-exito" disabled={cambiando} onClick={confirmarFactura}>
+              {cambiando ? 'Guardando…' : 'Confirmar'}
+            </button>
+          </>}
+        >
+          <div className="campo">
+            <label htmlFor="numero-factura">Número de factura o contrato</label>
+            <input id="numero-factura" className="input" value={numeroFacturaInput}
+              onChange={(e) => setNumeroFacturaInput(e.target.value)}
+              placeholder="Opcional — puedes dejarlo en blanco" />
+          </div>
         </Modal>
       )}
 

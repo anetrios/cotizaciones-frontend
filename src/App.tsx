@@ -10,6 +10,7 @@ import {
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Cotizaciones from './pages/Cotizaciones';
+import MisCotizaciones from './pages/MisCotizaciones';
 import NuevaCotizacion from './pages/NuevaCotizacion';
 import CotizacionDetalle from './pages/CotizacionDetalle';
 import Existencias from './pages/Existencias';
@@ -28,6 +29,7 @@ export default function App() {
 
             {/* Cotizaciones */}
             <Route path="/cotizaciones" element={<ProtectedRoute><Cotizaciones /></ProtectedRoute>} />
+            <Route path="/mis-cotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
             <Route path="/cotizaciones/nueva" element={
               <ProtectedRoute roles={['ADMIN', 'VENDEDOR']}><NuevaCotizacion /></ProtectedRoute>
             } />

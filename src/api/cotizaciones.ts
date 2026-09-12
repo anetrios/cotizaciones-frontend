@@ -1,5 +1,5 @@
 import api from './client';
-import type { CotizacionResumen, CotizacionCompleta, DashboardData } from '../types';
+import type { CotizacionResumen, CotizacionCompleta, DashboardData, DashboardDetalle, ResultadoCambioLote } from '../types';
 
 export const cotizacionesApi = {
   async parametros() {
@@ -28,12 +28,24 @@ export const cotizacionesApi = {
   async eliminar(id: number) {
     await api.delete(`/cotizaciones/${id}`);
   },
-  async cambiarEstatus(id: number, Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string) {
-    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, { Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle });
+  async cambiarEstatus(
+    id: number, Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string, NumeroFactura?: string
+  ) {
+    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, { Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, NumeroFactura });
     return data.datos as CotizacionCompleta;
+  },
+  async cambiarEstatusLote(
+    ids: number[], Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string, Facturas?: Record<number, string>
+  ) {
+    const { data } = await api.patch('/cotizaciones/estatus-lote', { ids, Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, Facturas });
+    return data.datos as ResultadoCambioLote;
   },
   async dashboard(filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
     const { data } = await api.get('/cotizaciones/dashboard', { params: filtros });
     return data.datos as DashboardData;
+  },
+  async dashboardDetalle(estatus: string, filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
+    const { data } = await api.get('/cotizaciones/dashboard/detalle', { params: { estatus, ...filtros } });
+    return data.datos as DashboardDetalle;
   },
 };

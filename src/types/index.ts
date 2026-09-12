@@ -64,6 +64,7 @@ export interface CotizacionCompleta extends CotizacionResumen {
   ClienteTelefono: string | null; ClienteEmail: string | null; ClienteDireccion: string | null;
   SucursalDireccion: string | null;
   MotivoNoConcrecion: MotivoNoConcrecion | null; MotivoNoConcrecionDetalle: string | null;
+  NumeroFactura: string | null;
   renglones: Renglon[];
   notas: Array<{ IdCotizacionNota: number; Categoria: string; Texto: string; Orden: number }>;
 }
@@ -71,10 +72,25 @@ export interface CotizacionCompleta extends CotizacionResumen {
 export interface DashboardData {
   resumen: {
     Total: number; Borradores: number; Enviadas: number; Pendientes: number; Concretadas: number; NoConcretadas: number;
-    TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalConcretado: number;
+    Vencidas: number; TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalConcretado: number;
   };
   porMes: Array<{ Mes: string; Total: number; Monto: number }>;
-  porUsuario: Array<{ IdUsuario: number; Usuario: string; Email: string | null; Total: number; Monto: number }>;
+  porUsuario: Array<{
+    IdUsuario: number; Usuario: string; Email: string | null; Total: number; Monto: number;
+    Concretadas: number; MontoConcretado: number;
+  }>;
+}
+
+export interface DetalleEstatusPersona { IdUsuario: number; Usuario: string; Total: number; }
+export interface DetalleEstatusMotivo { Motivo: string; Total: number; }
+export interface DashboardDetalle {
+  tipo: 'persona' | 'motivo';
+  filas: DetalleEstatusPersona[] | DetalleEstatusMotivo[];
+}
+
+export interface ResultadoCambioLote {
+  actualizadas: number[];
+  fallidas: Array<{ IdCotizacion: number; error: string }>;
 }
 
 export const ETIQUETA_ESTATUS: Record<EstatusCotizacion, string> = {

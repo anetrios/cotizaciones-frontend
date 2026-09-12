@@ -7,6 +7,7 @@ interface ItemNav { to: string; etiqueta: string; icono: string; soloAdmin?: boo
 const NAV: ItemNav[] = [
   { to: '/', etiqueta: 'Dashboard', icono: '◧' },
   { to: '/cotizaciones', etiqueta: 'Cotizaciones', icono: '▤' },
+  { to: '/mis-cotizaciones', etiqueta: 'Mis cotizaciones', icono: '☆' },
   { to: '/clientes', etiqueta: 'Clientes', icono: '◎', grupo: 'Catálogos' },
   { to: '/articulos-renta', etiqueta: 'Artículos de Renta', icono: '⬚', grupo: 'Catálogos' },
   { to: '/articulos-venta', etiqueta: 'Artículos de Venta', icono: '⬛', grupo: 'Catálogos' },
