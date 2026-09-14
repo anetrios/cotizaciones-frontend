@@ -10,6 +10,7 @@ import { ETIQUETA_MOTIVO_NO_CONCRECION } from '../types';
 import type { DashboardData, EstatusCotizacion, MotivoNoConcrecion } from '../types';
 
 const COLORES = ['#6B7280', '#D97706', '#2563EB', '#16A34A', '#DC2626', '#7C3AED'];
+const MEDALLAS = ['🥇', '🥈', '🥉'];
 
 type ModoFecha = 'semana' | 'mes' | 'rango';
 type CampoOrdenUsuario = 'Concretadas' | 'PctConcretadas' | 'MontoConcretado' | 'Monto' | 'Total';
@@ -109,6 +110,12 @@ export default function Dashboard() {
   const porUsuarioOrdenado = [...porUsuarioConPct].sort((a, b) =>
     (orden.dir === 'desc' ? 1 : -1) * (b[orden.campo] - a[orden.campo]));
 
+  /** Las 3 personas con mayor monto concretado en el periodo; se descarta a quien no concretó nada. */
+  const topCotizadoras = [...data.porUsuario]
+    .filter((u) => u.MontoConcretado > 0)
+    .sort((a, b) => b.MontoConcretado - a.MontoConcretado)
+    .slice(0, 3);
+
   return (
     <Layout titulo="Dashboard" acciones={
       <button className="btn btn-primario" onClick={() => navigate('/cotizaciones/nueva')}>+ Nueva cotización</button>
@@ -123,6 +130,28 @@ export default function Dashboard() {
             <input className="input" type="date" style={{ maxWidth: 160 }} value={rangoFin} onChange={(e) => setRangoFin(e.target.value)} />
           </>
         )}
+      </div>
+
+      <div className="card card-cuerpo" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginBottom: 14, fontSize: 16 }}>🏆 Top de cotizadores</h3>
+        {topCotizadoras.length ? (
+          <div className="flex-col gap-8">
+            {topCotizadoras.map((u, i) => (
+              <div
+                key={u.IdUsuario} className="flex items-center justify-between gap-12"
+                style={{ padding: '10px 14px', background: 'var(--superficie-2)', border: '1px solid var(--borde)', borderRadius: 8 }}
+              >
+                <span className="flex items-center gap-12">
+                  <span style={{ fontSize: 22, lineHeight: 1 }}>{MEDALLAS[i]}</span>
+                  <span style={{ fontWeight: 600 }}>{u.Usuario}</span>
+                </span>
+                <span className="num" style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 18 }}>
+                  {moneda(u.MontoConcretado)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : <p className="texto-suave">Sin cotizaciones concretadas en el periodo.</p>}
       </div>
 
       <div className="grid-4-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14, marginBottom: 20 }}>
