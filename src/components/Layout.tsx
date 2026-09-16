@@ -9,6 +9,7 @@ const NAV: ItemNav[] = [
   { to: '/cotizaciones', etiqueta: 'Cotizaciones', icono: '▤' },
   { to: '/mis-cotizaciones', etiqueta: 'Mis cotizaciones', icono: '☆' },
   { to: '/clientes', etiqueta: 'Clientes', icono: '◎', grupo: 'Catálogos' },
+  { to: '/incidencias', etiqueta: 'Incidencias', icono: '⚠', grupo: 'Catálogos' },
   { to: '/articulos-renta', etiqueta: 'Artículos de Renta', icono: '⬚', grupo: 'Catálogos' },
   { to: '/articulos-venta', etiqueta: 'Artículos de Venta', icono: '⬛', grupo: 'Catálogos' },
   { to: '/servicios', etiqueta: 'Servicios', icono: '⚙', grupo: 'Catálogos' },
@@ -16,6 +17,7 @@ const NAV: ItemNav[] = [
   { to: '/existencias', etiqueta: 'Existencias', icono: '▦', grupo: 'Inventario' },
   { to: '/usuarios', etiqueta: 'Usuarios', icono: '☖', soloAdmin: true, grupo: 'Administración' },
   { to: '/sucursales', etiqueta: 'Sucursales', icono: '⌂', soloAdmin: true, grupo: 'Administración' },
+  { to: '/revision', etiqueta: 'Revisión de clientes', icono: '✎', soloAdmin: true, grupo: 'Administración' },
   { to: '/configuracion', etiqueta: 'Configuración', icono: '⚿', soloAdmin: true, grupo: 'Administración' },
 ];
 

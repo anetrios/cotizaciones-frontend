@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Spinner, BadgeEstatus, BadgeTipo, Vacio, moneda, fecha, estatusVisible } from './UI';
+import { Spinner, BadgeEstatus, BadgeTipo, Vacio, moneda, fecha } from './UI';
 
 describe('moneda', () => {
   it('formatea en MXN por default', () => {
@@ -29,35 +29,6 @@ describe('fecha', () => {
     expect(fecha(null)).toBe('—');
     expect(fecha(undefined)).toBe('—');
     expect(fecha('')).toBe('—');
-  });
-});
-
-describe('estatusVisible', () => {
-  const haceDias = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
-
-  it('BORRADOR nunca se ve como Vencida, sin importar la fecha', () => {
-    expect(estatusVisible('BORRADOR', haceDias(365), 15)).toBe('BORRADOR');
-  });
-
-  it('CONCRETADA y NO_CONCRETADA tampoco se ven como Vencida', () => {
-    expect(estatusVisible('CONCRETADA', haceDias(365), 15)).toBe('CONCRETADA');
-    expect(estatusVisible('NO_CONCRETADA', haceDias(365), 15)).toBe('NO_CONCRETADA');
-  });
-
-  it('ENVIADA dentro de la vigencia se mantiene ENVIADA', () => {
-    expect(estatusVisible('ENVIADA', haceDias(1), 15)).toBe('ENVIADA');
-  });
-
-  it('ENVIADA fuera de la vigencia se ve como VENCIDA', () => {
-    expect(estatusVisible('ENVIADA', haceDias(30), 15)).toBe('VENCIDA');
-  });
-
-  it('PENDIENTE fuera de la vigencia también se ve como VENCIDA', () => {
-    expect(estatusVisible('PENDIENTE', haceDias(30), 15)).toBe('VENCIDA');
-  });
-
-  it('PENDIENTE dentro de la vigencia se mantiene PENDIENTE', () => {
-    expect(estatusVisible('PENDIENTE', haceDias(1), 15)).toBe('PENDIENTE');
   });
 });
 

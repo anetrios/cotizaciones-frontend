@@ -69,25 +69,6 @@
 /* ---- Buscador de artículos ---- */
 .nc-fuente-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
 
-.nc-item-lista {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  width: 100%;
-  padding: 9px 12px;
-  border: none;
-  border-bottom: 1px solid var(--borde);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  color: var(--texto);
-  transition: background .12s;
-}
-.nc-item-lista:hover { background: var(--amarillo-suave); }
-.nc-item-lista:last-child { border-bottom: none; }
-
 .nc-mini { font-size: 12px; color: var(--texto-suave); }
 
 /* ---- Tabla de renglones ---- */

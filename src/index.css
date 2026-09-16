@@ -33,7 +33,6 @@
   --est-PENDIENTE:#2563EB; --est-PENDIENTE-bg:#DBEAFE;
   --est-CONCRETADA:#16A34A; --est-CONCRETADA-bg:#DCFCE7;
   --est-NO_CONCRETADA:#DC2626;--est-NO_CONCRETADA-bg:#FEE2E2;
-  --est-VENCIDA:#6B7280;  --est-VENCIDA-bg:#EEF0F2;
 
   --display: 'Archivo', system-ui, sans-serif;
   --cuerpo:  'Inter', system-ui, sans-serif;
@@ -96,13 +95,62 @@ h1,h2,h3,h4 { font-family: var(--display); font-weight: 700; line-height: 1.15; 
 .badge-PENDIENTE { color: var(--est-PENDIENTE); background: var(--est-PENDIENTE-bg); }
 .badge-CONCRETADA { color: var(--est-CONCRETADA); background: var(--est-CONCRETADA-bg); }
 .badge-NO_CONCRETADA { color: var(--est-NO_CONCRETADA); background: var(--est-NO_CONCRETADA-bg); }
-.badge-VENCIDA { color: var(--est-VENCIDA); background: var(--est-VENCIDA-bg); }
 .badge-tipo { display: inline-flex; padding: 2px 8px; border-radius: var(--radio-sm); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--borde-fuerte); color: var(--texto-medio); }
 .badge-tipo.RENTA { color: var(--amarillo-osc); background: var(--amarillo-suave); border-color: transparent; }
 .badge-tipo.VENTA { color: var(--info); background: var(--info-bg); border-color: transparent; }
 .chip { display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--fondo); color: var(--texto-medio); }
 .chip.warn { background: var(--alerta-bg); color: var(--alerta); }
 .chip.bad { background: var(--error-bg); color: var(--error); }
+
+/* Renglón de una lista para elegir (clientes, artículos): un botón de ancho completo */
+.item-lista {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  width: 100%; padding: 9px 12px; border: none; border-bottom: 1px solid var(--borde);
+  background: transparent; text-align: left; font: inherit; color: var(--texto);
+  transition: background .12s;
+}
+.item-lista:hover { background: var(--amarillo-suave); }
+.item-lista:last-child { border-bottom: none; }
+
+/* Paginador con números */
+.paginador { display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.paginas { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pagina {
+  min-width: 34px; padding: 7px 9px; border: 1px solid var(--borde-fuerte); border-radius: var(--radio-sm);
+  background: var(--superficie); color: var(--texto); font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums; transition: background .15s, border-color .15s, color .15s;
+}
+.pagina:hover:not(.activa) { background: var(--superficie-2); border-color: var(--texto-suave); }
+.pagina.activa { background: var(--amarillo); border-color: var(--amarillo-osc); color: var(--negro); cursor: default; }
+.pagina-hueco { padding: 0 2px; color: var(--texto-suave); font-size: 13px; user-select: none; }
+
+/* En pantallas chicas los números se comen la fila: manda la navegación. */
+@media (max-width: 600px) {
+  .paginador { justify-content: center; }
+  .paginador > span { width: 100%; text-align: center; }
+}
+
+/* Pestañas */
+.pestanas { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--borde); margin-bottom: 20px; }
+.pestana { padding: 10px 16px; border: none; background: transparent; font-size: 14px; font-weight: 600; color: var(--texto-suave); border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+.pestana:hover { color: var(--texto-medio); }
+.pestana.activa { color: var(--negro); border-bottom-color: var(--amarillo); }
+.pestana .cuenta { margin-left: 6px; font-size: 12px; color: var(--texto-suave); font-weight: 500; }
+
+/* Estrella del contacto principal */
+.estrella { background: transparent; border: none; font-size: 17px; line-height: 1; padding: 2px 6px; color: var(--borde-fuerte); border-radius: var(--radio-sm); }
+.estrella:hover:not(:disabled) { color: var(--amarillo-osc); background: var(--amarillo-suave); }
+.estrella.activa { color: var(--amarillo-osc); }
+.estrella:disabled { cursor: default; }
+
+/* Renglón atenuado: lo resuelto o desactivado sigue visible, pero no compite */
+.tabla tbody tr.atenuada td { color: var(--texto-suave); background: var(--superficie-2); }
+
+/* Bloque colapsable de solo lectura (registro original del cliente) */
+.colapsable { border: 1px solid var(--borde); border-radius: var(--radio-sm); background: var(--superficie-2); }
+.colapsable > summary { padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--texto-medio); cursor: pointer; }
+.colapsable > summary:hover { color: var(--texto); }
+.colapsable .contenido { padding: 0 14px 14px; font-size: 13px; color: var(--texto-medio); white-space: pre-wrap; word-break: break-word; }
 
 /* Tablas */
 .tabla { width: 100%; border-collapse: collapse; font-size: 14px; }

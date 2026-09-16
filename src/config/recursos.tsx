@@ -12,24 +12,41 @@ const boolChip = (etq: string) => (v: unknown) => v ? <span className="chip warn
 export const CFG_CLIENTES: RecursoConfig = {
   titulo: 'Clientes', nombreSingular: 'Cliente', ruta: 'clientes', idClave: 'IdCliente',
   buscar: true, textoEliminar: 'desactivar', paginado: true,
+  rutaDetalle: (fila) => `/clientes/${fila.IdCliente}`,
+  // Los maxLargo son los anchos reales de dbo.cliente, leídos de sys.columns
+  // después de correr la migración. Ojo: varios son más chicos de lo que parece
+  // (RFC 13, Contacto 100, Email 120, Dirección 250).
   campos: [
-    { clave: 'RazonSocial', etiqueta: 'Razón social', tipo: 'texto', requerido: true, ancho: 'completo' },
-    { clave: 'NombreComercial', etiqueta: 'Nombre comercial', tipo: 'texto' },
-    { clave: 'RFC', etiqueta: 'RFC', tipo: 'texto' },
-    { clave: 'Contacto', etiqueta: 'Contacto', tipo: 'texto' },
-    { clave: 'Telefono', etiqueta: 'Teléfono', tipo: 'texto' },
-    { clave: 'Email', etiqueta: 'Email', tipo: 'texto', soloForm: true },
-    { clave: 'Direccion', etiqueta: 'Dirección', tipo: 'textarea', ancho: 'completo', soloForm: true },
+    { clave: 'RazonSocial', etiqueta: 'Razón social', tipo: 'texto', requerido: true, ancho: 'completo',
+      maxLargo: 150 },
+    { clave: 'NombreComercial', etiqueta: 'Nombre comercial', tipo: 'texto', maxLargo: 150 },
+    { clave: 'RFC', etiqueta: 'RFC', tipo: 'texto', maxLargo: 13 },
+    { clave: 'Contacto', etiqueta: 'Contacto', tipo: 'texto', maxLargo: 100,
+      ayuda: 'Contacto principal. Los demás se administran en la ficha del cliente.' },
+    { clave: 'Telefono', etiqueta: 'Teléfono', tipo: 'texto', maxLargo: 40 },
+    { clave: 'Ciudad', etiqueta: 'Ciudad', tipo: 'texto', maxLargo: 150 },
+    { clave: 'TelefonoAlterno', etiqueta: 'Teléfono alterno', tipo: 'texto', soloForm: true, maxLargo: 40 },
+    { clave: 'Email', etiqueta: 'Email', tipo: 'texto', soloForm: true, maxLargo: 120 },
+    { clave: 'Direccion', etiqueta: 'Dirección', tipo: 'textarea', ancho: 'completo', soloForm: true, maxLargo: 250 },
+    { clave: 'DireccionFiscal', etiqueta: 'Domicilio fiscal', tipo: 'textarea', ancho: 'completo', soloForm: true,
+      maxLargo: 400, ayuda: 'Solo si es distinto del domicilio de obra.' },
     {
-      clave: 'Restriccion', etiqueta: 'Restricción', tipo: 'select', formato: restriccionChip,
+      // Solo ADMIN: quitar un bloqueo tiene reglas en el servidor (no quedan
+      // incidencias abiertas, y lo autoriza un administrador). Se sigue viendo
+      // en la tabla y en el encabezado de la ficha para todos.
+      clave: 'Restriccion', etiqueta: 'Restricción', tipo: 'select', soloAdmin: true,
+      formato: restriccionChip,
       opciones: [
         { valor: 'NINGUNA', etiqueta: 'Ninguna' },
         { valor: 'ADVERTENCIA', etiqueta: 'Advertencia (lista negra)' },
         { valor: 'BLOQUEO', etiqueta: 'Bloqueo (no cotizar)' },
       ],
     },
-    { clave: 'MotivoRestriccion', etiqueta: 'Motivo de la restricción', tipo: 'textarea', ancho: 'completo', soloForm: true,
+    { clave: 'MotivoRestriccion', etiqueta: 'Motivo de la restricción', tipo: 'textarea', ancho: 'completo',
+      soloForm: true, soloAdmin: true, maxLargo: 300,
       ayuda: 'Por qué está en lista negra: adeudo, daño no repuesto, etc.' },
+    { clave: 'Observaciones', etiqueta: 'Observaciones', tipo: 'textarea', ancho: 'completo', soloForm: true,
+      maxLargo: 4000, ayuda: 'Notas que no son contacto ni domicilio.' },
   ],
 };
 

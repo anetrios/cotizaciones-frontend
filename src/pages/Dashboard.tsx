@@ -50,7 +50,10 @@ export default function Dashboard() {
   const [modo, setModo] = useState<ModoFecha>('mes');
   const [rangoInicio, setRangoInicio] = useState('');
   const [rangoFin, setRangoFin] = useState('');
-  const [orden, setOrden] = useState<{ campo: CampoOrdenUsuario; dir: 'asc' | 'desc' }>({ campo: 'Total', dir: 'desc' });
+  // Entra ordenada por monto concretado: lo que importa es cuánto se cerró, no
+  // cuántas cotizaciones se hicieron. Las columnas siguen siendo ordenables.
+  const [orden, setOrden] = useState<{ campo: CampoOrdenUsuario; dir: 'asc' | 'desc' }>(
+    { campo: 'MontoConcretado', dir: 'desc' });
   const [drill, setDrill] = useState<{ estatus: EstatusCotizacion; nombre: string } | null>(null);
   const [detalleDrill, setDetalleDrill] = useState<Array<{ name: string; value: number }> | null>(null);
   const [cargandoDrill, setCargandoDrill] = useState(false);
@@ -96,7 +99,6 @@ export default function Dashboard() {
     { name: 'Pendiente', value: r.Pendientes ?? 0, estatus: 'PENDIENTE' },
     { name: 'Concretada', value: r.Concretadas ?? 0, estatus: 'CONCRETADA' },
     { name: 'No concretada', value: r.NoConcretadas ?? 0, estatus: 'NO_CONCRETADA' },
-    { name: 'Vencida', value: r.Vencidas ?? 0, estatus: 'VENCIDA' },
   ];
   const pastel = pastelCompleto.filter((x) => x.value > 0);
   const barras = data.porMes.map((m) => ({ mes: m.Mes.slice(5), Cotizaciones: m.Total }));

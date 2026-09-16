@@ -20,7 +20,7 @@ function cotizacionBase(overrides: Partial<CotizacionCompleta> = {}): Cotizacion
     Fecha: new Date().toISOString(), VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 1000, DescuentoMonto: 0, IVA: 160, Total: 1160,
     Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: 'rocio@x.com', Sucursal: 'Torreón',
-    IdCliente: 1, IdSucursal: 1, IdUsuario: 7,
+    IdCliente: 1, IdContactoCliente: null, IdSucursal: 1, IdUsuario: 7,
     TipoCambio: null, TiempoEntrega: null, Garantia: null, CondicionesEntrega: null,
     CondicionPago: 'CONTADO', DiasCredito: null,
     AnticipoPorcentaje: null, AnticipoMonto: null, FormaLiquidacionSaldo: null, Observaciones: null,

@@ -1,6 +1,6 @@
 export type Rol = 'ADMIN' | 'VENDEDOR' | 'CONSULTA';
 export type TipoCotizacion = 'RENTA' | 'VENTA';
-export type EstatusCotizacion = 'BORRADOR' | 'ENVIADA' | 'PENDIENTE' | 'CONCRETADA' | 'NO_CONCRETADA' | 'VENCIDA';
+export type EstatusCotizacion = 'BORRADOR' | 'ENVIADA' | 'PENDIENTE' | 'CONCRETADA' | 'NO_CONCRETADA';
 export type MotivoNoConcrecion = 'PRECIO' | 'COMPETENCIA' | 'PRESUPUESTO_CLIENTE' | 'REQUERIMIENTOS' | 'FALTA_EQUIPO' | 'POSTERGACION_PROYECTO' | 'OTRO';
 
 export interface UsuarioSesion {
@@ -17,10 +17,60 @@ export interface SucursalConContactos {
   IdSucursal: number; Nombre: string; Ciudad: string | null; Direccion: string | null; contactos: ContactoSucursal[];
 }
 
+export type Restriccion = 'NINGUNA' | 'ADVERTENCIA' | 'BLOQUEO';
+
 export interface Cliente {
   IdCliente: number; RazonSocial: string; NombreComercial: string | null; RFC: string | null;
-  Contacto: string | null; Telefono: string | null; Email: string | null; Direccion: string | null;
-  Restriccion: 'NINGUNA' | 'ADVERTENCIA' | 'BLOQUEO'; MotivoRestriccion: string | null; Activo: boolean;
+  Contacto: string | null; Telefono: string | null; TelefonoAlterno: string | null;
+  Email: string | null; Direccion: string | null; DireccionFiscal: string | null;
+  Ciudad: string | null; Observaciones: string | null;
+  Restriccion: Restriccion; MotivoRestriccion: string | null; Activo: boolean;
+  /** Foto del registro antes de la limpieza. Solo lectura: solo llega en el detalle. */
+  ObservacionesOriginal?: string | null;
+}
+
+export interface ContactoCliente {
+  IdContacto: number; IdCliente: number;
+  Nombre: string | null; Puesto: string | null;
+  Telefono: string | null; Celular: string | null; Email: string | null; Notas: string | null;
+  EsPrincipal: boolean; Origen: string; Activo: boolean; FechaCreacion: string;
+}
+
+export type TipoIncidencia = 'NO_PAGO' | 'MORA' | 'DANO_NO_REPUESTO' | 'OTRO';
+
+export interface Incidencia {
+  IdIncidencia: number; IdCliente: number; Tipo: TipoIncidencia; Descripcion: string;
+  Monto: number | null; Fecha: string; IdUsuario: number | null; Resuelta: boolean;
+  /** Solo en el listado global de cobranza. */
+  Cliente?: string; Restriccion?: Restriccion; ClienteTelefono?: string | null; Usuario?: string | null;
+}
+
+export interface ExpedienteIncidencias {
+  incidencias: Incidencia[];
+  Pendientes: number;
+  TotalAdeudo: number;
+  Restriccion: Restriccion;
+  MotivoRestriccion: string | null;
+}
+
+export interface ResultadoResolver {
+  incidencia: Incidencia;
+  pendientes: number;
+  totalAdeudo: number;
+  puedeDesbloquearse: boolean;
+  cliente: { IdCliente: number; RazonSocial: string } | null;
+}
+
+export type AccionRevision =
+  | 'PERSONA' | 'DOS_PERSONAS' | 'TELEFONO' | 'DOMICILIO' | 'NOTA' | 'BASURA' | 'PREGUNTAR';
+
+export interface PendienteRevision {
+  IdRevision: number; IdCliente: number; Campo: string; ValorOriginal: string | null;
+  Motivo: string; Sugerencia: string | null; Resuelto: boolean; ResueltoPor: string | null;
+  FechaCreacion: string;
+  Cliente: string; Ciudad: string | null; ContactoActual: string | null;
+  TelefonoActual: string | null; EmailActual: string | null; DireccionActual: string | null;
+  Restriccion: Restriccion; Cotizaciones: number;
 }
 
 export interface ArticuloRenta {
@@ -54,7 +104,7 @@ export interface CotizacionResumen {
 }
 
 export interface CotizacionCompleta extends CotizacionResumen {
-  IdCliente: number; IdSucursal: number; IdUsuario: number;
+  IdCliente: number; IdContactoCliente: number | null; IdSucursal: number; IdUsuario: number;
   TipoCambio: number | null; TiempoEntrega: string | null; Garantia: string | null;
   CondicionesEntrega: string | null; CondicionPago: 'CONTADO' | 'CREDITO'; DiasCredito: number | null;
   AnticipoPorcentaje: number | null; AnticipoMonto: number | null; FormaLiquidacionSaldo: string | null;
@@ -72,7 +122,7 @@ export interface CotizacionCompleta extends CotizacionResumen {
 export interface DashboardData {
   resumen: {
     Total: number; Borradores: number; Enviadas: number; Pendientes: number; Concretadas: number; NoConcretadas: number;
-    Vencidas: number; TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalConcretado: number;
+    TipoRenta: number; TipoVenta: number; TotalCotizado: number; TotalConcretado: number;
   };
   porMes: Array<{ Mes: string; Total: number; Monto: number }>;
   porUsuario: Array<{
@@ -95,7 +145,7 @@ export interface ResultadoCambioLote {
 
 export const ETIQUETA_ESTATUS: Record<EstatusCotizacion, string> = {
   BORRADOR: 'Borrador', ENVIADA: 'Enviada', PENDIENTE: 'Pendiente de respuesta', CONCRETADA: 'Concretada',
-  NO_CONCRETADA: 'No concretada', VENCIDA: 'Vencida',
+  NO_CONCRETADA: 'No concretada',
 };
 export const ETIQUETA_MOTIVO_NO_CONCRECION: Record<MotivoNoConcrecion, string> = {
   PRECIO: 'Precio', COMPETENCIA: 'Competencia', PRESUPUESTO_CLIENTE: 'Presupuesto del cliente',
@@ -105,3 +155,13 @@ export const ETIQUETA_MOTIVO_NO_CONCRECION: Record<MotivoNoConcrecion, string> =
 export const ETIQUETA_UNIDAD: Record<string, string> = {
   DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza', HORA: 'hora',
 };
+
+export const ETIQUETA_INCIDENCIA: Record<TipoIncidencia, string> = {
+  NO_PAGO: 'No pagó',
+  MORA: 'Se atrasa en pagos',
+  DANO_NO_REPUESTO: 'Dañó o no devolvió equipo',
+  OTRO: 'Otro',
+};
+
+/** Estos dos dejan al cliente bloqueado en automático (regla del servidor). */
+export const INCIDENCIAS_QUE_BLOQUEAN: TipoIncidencia[] = ['NO_PAGO', 'DANO_NO_REPUESTO'];

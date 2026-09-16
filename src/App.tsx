@@ -15,6 +15,9 @@ import NuevaCotizacion from './pages/NuevaCotizacion';
 import CotizacionDetalle from './pages/CotizacionDetalle';
 import Existencias from './pages/Existencias';
 import Sucursales from './pages/Sucursales';
+import ClienteDetalle from './pages/ClienteDetalle';
+import Incidencias from './pages/Incidencias';
+import RevisionClientes from './pages/RevisionClientes';
 import Configuracion from './pages/Configuracion';
 
 export default function App() {
@@ -40,6 +43,8 @@ export default function App() {
 
             {/* Catálogos */}
             <Route path="/clientes" element={<ProtectedRoute><AdminCRUD config={CFG_CLIENTES} /></ProtectedRoute>} />
+            <Route path="/clientes/:id" element={<ProtectedRoute><ClienteDetalle /></ProtectedRoute>} />
+            <Route path="/incidencias" element={<ProtectedRoute><Incidencias /></ProtectedRoute>} />
             <Route path="/articulos-renta" element={<ProtectedRoute><AdminCRUD config={CFG_ART_RENTA} /></ProtectedRoute>} />
             <Route path="/articulos-venta" element={<ProtectedRoute><AdminCRUD config={CFG_ART_VENTA} /></ProtectedRoute>} />
             <Route path="/servicios" element={<ProtectedRoute><AdminCRUD config={CFG_SERVICIOS} /></ProtectedRoute>} />
@@ -54,6 +59,9 @@ export default function App() {
             } />
             <Route path="/sucursales" element={
               <ProtectedRoute roles={['ADMIN']}><Sucursales /></ProtectedRoute>
+            } />
+            <Route path="/revision" element={
+              <ProtectedRoute roles={['ADMIN']}><RevisionClientes /></ProtectedRoute>
             } />
             <Route path="/configuracion" element={
               <ProtectedRoute roles={['ADMIN']}><Configuracion /></ProtectedRoute>

@@ -23,4 +23,13 @@ export function mensajeError(error: unknown): string {
   if (axios.isAxiosError(error)) return error.response?.data?.error || error.message || 'Error de conexión';
   return 'Error inesperado';
 }
+
+/**
+ * Código que manda el servidor en algunos errores (`CLIENTE_BLOQUEADO`,
+ * `PIN_INCORRECTO`). Sirve para reaccionar sin leer el texto del mensaje.
+ */
+export function codigoError(error: unknown): string | null {
+  if (axios.isAxiosError(error)) return error.response?.data?.codigo || null;
+  return null;
+}
 export default api;

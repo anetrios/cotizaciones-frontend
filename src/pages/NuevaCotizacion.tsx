@@ -7,8 +7,10 @@ import { useToast } from '../components/ui/Toast';
 import { crearRecursoApi } from '../api/recurso';
 import { metaApi } from '../api/meta';
 import { cotizacionesApi } from '../api/cotizaciones';
-import { mensajeError } from '../api/client';
-import type { Cliente, Nota, TipoCotizacion } from '../types';
+import { mensajeError, codigoError } from '../api/client';
+import { clientesApi } from '../api/clientes';
+import { ModalCliente } from '../components/ModalCliente';
+import type { Cliente, ContactoCliente, Nota, TipoCotizacion } from '../types';
 import './NuevaCotizacion.css';
 
 interface RenglonForm {
@@ -37,6 +39,8 @@ export default function NuevaCotizacion() {
   const [cargandoCot, setCargandoCot] = useState(editando);
 
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [contactos, setContactos] = useState<ContactoCliente[]>([]);
+  const [idContacto, setIdContacto] = useState<number | ''>('');
   const [idSucursal, setIdSucursal] = useState<number | ''>('');
   const [moneda_, setMoneda] = useState<'MXN' | 'USD'>('MXN');
   const [tipoCambio, setTipoCambio] = useState<number | ''>('');
@@ -52,6 +56,7 @@ export default function NuevaCotizacion() {
   const [descuento, setDescuento] = useState(0);
   const [ivaPct, setIvaPct] = useState(16);
   const [pin, setPin] = useState('');
+  const [bloqueoSegunServidor, setBloqueoSegunServidor] = useState(false);
 
   const [renglones, setRenglones] = useState<RenglonForm[]>([]);
   const [modalCliente, setModalCliente] = useState(false);
@@ -66,6 +71,24 @@ export default function NuevaCotizacion() {
     cotizacionesApi.parametros().then((p) => setUmbralPin(p.umbralDescuentoPin)).catch(() => {});
   }, []);
 
+  // Contactos del cliente elegido. Con uno solo se toma automáticamente y no
+  // estorba; con varios aparece el selector. Sin contactos no pasa nada: la
+  // cotización sale con los datos del cliente, como siempre.
+  useEffect(() => {
+    if (!cliente) { setContactos([]); return; }
+    let vigente = true;
+    clientesApi.contactos(cliente.IdCliente)
+      .then((lista) => {
+        if (!vigente) return;
+        setContactos(lista);
+        const principal = lista.find((c) => c.EsPrincipal);
+        // `prev ||` respeta lo que ya venía elegido al editar una cotización.
+        setIdContacto((prev) => prev || principal?.IdContacto || (lista.length === 1 ? lista[0].IdContacto : ''));
+      })
+      .catch(() => { if (vigente) setContactos([]); });
+    return () => { vigente = false; };
+  }, [cliente]);
+
   // Cargar cotización existente en modo edición
   useEffect(() => {
     if (!id) return;
@@ -75,6 +98,7 @@ export default function NuevaCotizacion() {
         const cli = await crearRecursoApi('clientes').obtener(cot.IdCliente) as Cliente;
         setTipo(cot.Tipo);
         setFolio(cot.Folio);
+        setIdContacto(cot.IdContactoCliente ?? '');
         setCliente(cli);
         setIdSucursal(cot.IdSucursal);
         setMoneda(cot.Moneda as 'MXN' | 'USD');
@@ -139,7 +163,17 @@ export default function NuevaCotizacion() {
     return { conImporte, subtotal, descMonto, iva, total, anticipo };
   }, [renglones, tipo, descuento, ivaPct, anticipoPct]);
 
-  const requierePin = descuento > umbralPin || renglones.some((r) => (r.DescuentoPorcentaje || 0) > umbralPin);
+  // El PIN lo pide el servidor en dos casos: descuento sobre el umbral, o cliente
+  // bloqueado. Aquí solo se anticipa para no hacer capturar la cotización completa
+  // y toparse con el rechazo hasta el final.
+  //
+  // `bloqueoSegunServidor` cubre el hueco: si alguien bloqueó al cliente después de
+  // que se cargó esta pantalla, el rechazo llega al guardar y sin esto no habría
+  // dónde escribir el PIN — habría que recargar y capturar todo de nuevo.
+  const clienteBloqueado = cliente?.Restriccion === 'BLOQUEO' || bloqueoSegunServidor;
+  const requierePin = clienteBloqueado
+    || descuento > umbralPin
+    || renglones.some((r) => (r.DescuentoPorcentaje || 0) > umbralPin);
 
   const actualizarRenglon = (key: string, campo: keyof RenglonForm, valor: unknown) =>
     setRenglones((prev) => prev.map((r) => (r.key === key ? { ...r, [campo]: valor } : r)));
@@ -147,12 +181,15 @@ export default function NuevaCotizacion() {
 
   const validar = (): string | null => {
     if (!cliente) return 'Selecciona un cliente';
-    if (cliente.Restriccion === 'BLOQUEO') return 'El cliente está BLOQUEADO (lista negra). No se puede cotizar.';
     if (!idSucursal) return 'Selecciona una sucursal';
     if (!renglones.length) return 'Agrega al menos un concepto';
     if (moneda_ === 'USD' && !tipoCambio) return 'Indica el tipo de cambio para USD';
     if (condPago === 'CREDITO' && !diasCredito) return 'Indica los días de crédito';
-    if (requierePin && !pin) return `El descuento de ${descuento}% requiere PIN de supervisor`;
+    if (requierePin && !pin) {
+      return clienteBloqueado
+        ? 'El cliente está BLOQUEADO: cotizarle requiere PIN de supervisor'
+        : `El descuento de ${descuento}% requiere PIN de supervisor`;
+    }
     return null;
   };
 
@@ -162,7 +199,9 @@ export default function NuevaCotizacion() {
     setGuardando(true);
     try {
       const payload = {
-        Tipo: tipo, IdCliente: cliente!.IdCliente, IdSucursal: Number(idSucursal),
+        Tipo: tipo, IdCliente: cliente!.IdCliente,
+        IdContactoCliente: idContacto === '' ? null : Number(idContacto),
+        IdSucursal: Number(idSucursal),
         Moneda: moneda_, TipoCambio: moneda_ === 'USD' ? Number(tipoCambio) : null,
         VigenciaDias: vigencia,
         TiempoEntrega: tiempoEntrega || null, Garantia: garantia || null, CondicionesEntrega: condEntrega || null,
@@ -189,7 +228,12 @@ export default function NuevaCotizacion() {
         mostrar(`Cotización ${creada.Folio} creada`, 'exito');
         navigate(`/cotizaciones/${creada.IdCotizacion}`);
       }
-    } catch (e) { mostrar(mensajeError(e), 'error'); }
+    } catch (e) {
+      // Si el rechazo es por bloqueo, se abre el campo del PIN en vez de dejar
+      // al vendedor con la cotización capturada y sin salida.
+      if (codigoError(e) === 'CLIENTE_BLOQUEADO') setBloqueoSegunServidor(true);
+      mostrar(mensajeError(e), 'error');
+    }
     finally { setGuardando(false); }
   };
 
@@ -226,6 +270,11 @@ export default function NuevaCotizacion() {
                     <div className={`aviso ${cliente.Restriccion === 'BLOQUEO' ? 'error' : 'warn'} mt-8`}>
                       {cliente.Restriccion === 'BLOQUEO' ? '⛔ Cliente BLOQUEADO' : '⚠ Cliente con advertencia'}
                       {cliente.MotivoRestriccion ? `: ${cliente.MotivoRestriccion}` : ''}
+                      {cliente.Restriccion === 'BLOQUEO' && (
+                        <div style={{ marginTop: 4, fontWeight: 400 }}>
+                          Se puede cotizar con PIN de supervisor. Queda registrado quién autorizó.
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -233,6 +282,26 @@ export default function NuevaCotizacion() {
               </div>
             ) : (
               <button className="btn btn-secundario" onClick={() => setModalCliente(true)}>Seleccionar cliente…</button>
+            )}
+
+            {/* Con un solo contacto se toma solo; el selector aparece cuando hay a quién elegir. */}
+            {cliente && contactos.length > 1 && (
+              <div className="campo mt-16">
+                <label htmlFor="nc-contacto">Se le cotiza a</label>
+                <select id="nc-contacto" className="select" value={idContacto}
+                  onChange={(e) => setIdContacto(e.target.value ? Number(e.target.value) : '')}>
+                  <option value="">— Sin contacto específico —</option>
+                  {contactos.map((c) => (
+                    <option key={c.IdContacto} value={c.IdContacto}>
+                      {[c.Nombre, c.Puesto].filter(Boolean).join(' · ') || c.Telefono || c.Email}
+                      {c.EsPrincipal ? ' (principal)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {cliente && contactos.length === 1 && contactos[0].Nombre && (
+              <p className="nc-mini mt-8">Se le cotiza a {contactos[0].Nombre}.</p>
             )}
             <div className="campo mt-16">
               <label>Sucursal <span className="req">*</span></label>
@@ -407,8 +476,12 @@ export default function NuevaCotizacion() {
               <div className="campo mt-8">
                 <label style={{ color: 'var(--alerta)' }}>PIN de supervisor <span className="req">*</span></label>
                 <input className="input" type="password" value={pin} onChange={(e) => setPin(e.target.value)}
-                  placeholder={`Descuento > ${umbralPin}%`} />
-                <span className="texto-suave" style={{ fontSize: 12 }}>Requerido por superar el {umbralPin}%.</span>
+                  placeholder={clienteBloqueado ? 'Cliente bloqueado' : `Descuento > ${umbralPin}%`} />
+                <span className="texto-suave" style={{ fontSize: 12 }}>
+                  {clienteBloqueado
+                    ? 'Requerido porque el cliente está bloqueado. Queda registrado quién autorizó.'
+                    : `Requerido por superar el ${umbralPin}%.`}
+                </span>
               </div>
             )}
             <div className="campo mt-8">
@@ -430,7 +503,8 @@ export default function NuevaCotizacion() {
         </aside>
       </div>
 
-      {modalCliente && <ModalCliente onCerrar={() => setModalCliente(false)} onElegir={(c) => { setCliente(c); setModalCliente(false); }} />}
+      {modalCliente && <ModalCliente onCerrar={() => setModalCliente(false)}
+        onElegir={(c) => { setCliente(c); setIdContacto(''); setBloqueoSegunServidor(false); setModalCliente(false); }} />}
       {modalConcepto && (
         <ModalConcepto tipo={tipo} onCerrar={() => setModalConcepto(false)}
           onElegir={(r) => { setRenglones((prev) => [...prev, r]); setModalConcepto(false); }} />
@@ -439,32 +513,6 @@ export default function NuevaCotizacion() {
   );
 }
 
-/* ---------- Modal: elegir cliente ---------- */
-function ModalCliente({ onCerrar, onElegir }: { onCerrar: () => void; onElegir: (c: Cliente) => void }) {
-  const [busqueda, setBusqueda] = useState('');
-  const [filas, setFilas] = useState<Cliente[]>([]);
-  useEffect(() => {
-    const t = setTimeout(() => { crearRecursoApi('clientes').listar({ busqueda }).then((f) => setFilas(f as Cliente[])); }, 250);
-    return () => clearTimeout(t);
-  }, [busqueda]);
-  return (
-    <Modal titulo="Seleccionar cliente" onCerrar={onCerrar} ancho={620}>
-      <input className="input" autoFocus placeholder="Buscar por razón social o RFC…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
-      <div style={{ maxHeight: 380, overflowY: 'auto' }} className="mt-8">
-        {filas.map((c) => (
-          <button key={c.IdCliente} className="nc-item-lista" onClick={() => onElegir(c)}>
-            <div>
-              <strong>{c.RazonSocial}</strong>
-              {c.Restriccion !== 'NINGUNA' && <span className={`chip ${c.Restriccion === 'BLOQUEO' ? 'bad' : 'warn'}`} style={{ marginLeft: 8 }}>{c.Restriccion === 'BLOQUEO' ? 'Bloqueado' : 'Advertencia'}</span>}
-              <div className="texto-suave" style={{ fontSize: 12 }}>{c.RFC || 'Sin RFC'} · {c.Telefono || 's/tel'}</div>
-            </div>
-          </button>
-        ))}
-        {filas.length === 0 && <p className="texto-suave" style={{ padding: 12 }}>Sin resultados.</p>}
-      </div>
-    </Modal>
-  );
-}
 
 /* ---------- Modal: agregar concepto ---------- */
 function ModalConcepto({ tipo, onCerrar, onElegir }: {
@@ -533,7 +581,7 @@ function ModalConcepto({ tipo, onCerrar, onElegir }: {
           <input className="input mt-8" autoFocus placeholder="Buscar…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
           <div style={{ maxHeight: 360, overflowY: 'auto' }} className="mt-8">
             {filas.map((a) => (
-              <button key={String(a.IdArticuloRenta ?? a.IdArticuloVenta ?? a.IdServicio)} className="nc-item-lista"
+              <button key={String(a.IdArticuloRenta ?? a.IdArticuloVenta ?? a.IdServicio)} className="item-lista"
                 onClick={() => (fuente === 'servicio' ? elegirServicio(a) : elegirArticulo(a))}>
                 <div>
                   <strong>{a.Descripcion as string}</strong>

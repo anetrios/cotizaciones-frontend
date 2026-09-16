@@ -17,7 +17,7 @@ function dashboardData(overrides: Partial<DashboardData> = {}): DashboardData {
   return {
     resumen: {
       Total: 0, Borradores: 0, Enviadas: 0, Pendientes: 0, Concretadas: 0, NoConcretadas: 0,
-      Vencidas: 0, TipoRenta: 0, TipoVenta: 0, TotalCotizado: 0, TotalConcretado: 0,
+      TipoRenta: 0, TipoVenta: 0, TotalCotizado: 0, TotalConcretado: 0,
     },
     porMes: [],
     porUsuario: [],
@@ -211,5 +211,47 @@ describe('Dashboard — top de cotizadores', () => {
     await user.click(screen.getByRole('button', { name: 'Esta semana' }));
 
     await waitFor(() => expect(renglonesDelTop()).toEqual([`🥇Laura${moneda(12000)}`]));
+  });
+});
+
+describe('Dashboard — orden de entrada de la tabla', () => {
+  const tresPersonas = [
+    // A propósito desordenadas, y con el orden por "número de cotizaciones"
+    // distinto al orden por "monto concretado": así se nota cuál manda.
+    { IdUsuario: 1, Usuario: 'Ana', Email: null, Total: 50, Monto: 100, Concretadas: 1, MontoConcretado: 1000 },
+    { IdUsuario: 2, Usuario: 'Beto', Email: null, Total: 10, Monto: 100, Concretadas: 9, MontoConcretado: 90000 },
+    { IdUsuario: 3, Usuario: 'Caro', Email: null, Total: 30, Monto: 100, Concretadas: 5, MontoConcretado: 45000 },
+  ];
+
+  const nombresEnTabla = () =>
+    screen.getAllByRole('row').slice(1).map((f) => f.querySelector('td')!.textContent);
+
+  it('entra ordenada por monto concretado, de mayor a menor', async () => {
+    vi.mocked(cotizacionesApi.dashboard).mockResolvedValue(dashboardData({ porUsuario: tresPersonas }));
+    renderDashboard();
+    await screen.findByRole('table');
+
+    expect(nombresEnTabla()).toEqual(['Beto', 'Caro', 'Ana']);
+  });
+
+  it('la columna de monto concretado se ve marcada como la que ordena', async () => {
+    vi.mocked(cotizacionesApi.dashboard).mockResolvedValue(dashboardData({ porUsuario: tresPersonas }));
+    renderDashboard();
+
+    expect(await screen.findByRole('columnheader', { name: /Monto concretado ▼/ })).toBeInTheDocument();
+  });
+
+  it('las columnas siguen siendo ordenables a mano', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.dashboard).mockResolvedValue(dashboardData({ porUsuario: tresPersonas }));
+    renderDashboard();
+    await screen.findByRole('table');
+
+    await user.click(screen.getByRole('columnheader', { name: /Número de cotizaciones/ }));
+    expect(nombresEnTabla()).toEqual(['Ana', 'Caro', 'Beto']);
+
+    // Segundo clic invierte la dirección.
+    await user.click(screen.getByRole('columnheader', { name: /Número de cotizaciones/ }));
+    expect(nombresEnTabla()).toEqual(['Beto', 'Caro', 'Ana']);
   });
 });

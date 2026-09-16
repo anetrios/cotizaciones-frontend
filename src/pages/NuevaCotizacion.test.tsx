@@ -8,18 +8,21 @@ import { ToastProvider } from '../components/ui/Toast';
 import { crearRecursoApi } from '../api/recurso';
 import { metaApi } from '../api/meta';
 import { cotizacionesApi } from '../api/cotizaciones';
-import type { Cliente, CotizacionCompleta, UsuarioSesion } from '../types';
+import { clientesApi } from '../api/clientes';
+import type { Cliente, ContactoCliente, CotizacionCompleta, UsuarioSesion } from '../types';
 
 vi.mock('../api/recurso', () => ({ crearRecursoApi: vi.fn() }));
 vi.mock('../api/meta', () => ({ metaApi: { notas: vi.fn(), sucursales: vi.fn() } }));
 vi.mock('../api/cotizaciones', () => ({
   cotizacionesApi: { parametros: vi.fn(), crear: vi.fn(), actualizar: vi.fn(), obtener: vi.fn() },
 }));
+vi.mock('../api/clientes', () => ({ clientesApi: { contactos: vi.fn() } }));
 
 function clienteBase(overrides: Partial<Cliente> = {}): Cliente {
   return {
     IdCliente: 1, RazonSocial: 'Constructora Demo', NombreComercial: null, RFC: null,
-    Contacto: null, Telefono: null, Email: null, Direccion: null,
+    Contacto: null, Telefono: null, TelefonoAlterno: null, Email: null,
+    Direccion: null, DireccionFiscal: null, Ciudad: null, Observaciones: null,
     Restriccion: 'NINGUNA', MotivoRestriccion: null, Activo: true,
     ...overrides,
   };
@@ -46,7 +49,7 @@ function cotizacionCreada(overrides: Partial<CotizacionCompleta> = {}): Cotizaci
     Fecha: new Date().toISOString(), VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 850, DescuentoMonto: 0, IVA: 136, Total: 986,
     Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: null, Sucursal: 'Torreón',
-    IdCliente: 1, IdSucursal: 1, IdUsuario: 7,
+    IdCliente: 1, IdContactoCliente: null, IdSucursal: 1, IdUsuario: 7,
     TipoCambio: null, TiempoEntrega: null, Garantia: null, CondicionesEntrega: null,
     CondicionPago: 'CONTADO', DiasCredito: null,
     AnticipoPorcentaje: null, AnticipoMonto: null, FormaLiquidacionSaldo: null, Observaciones: null,
@@ -118,6 +121,7 @@ beforeEach(() => {
     { IdSucursal: 1, Nombre: 'Torreón', Ciudad: null, Direccion: null, contactos: [] },
   ]);
   vi.mocked(cotizacionesApi.parametros).mockResolvedValue({ umbralDescuentoPin: 15, ivaDefault: 16 });
+  vi.mocked(clientesApi.contactos).mockResolvedValue([]);
 });
 
 describe('NuevaCotizacion — crear (flujo feliz)', () => {
@@ -141,6 +145,100 @@ describe('NuevaCotizacion — crear (flujo feliz)', () => {
   });
 });
 
+describe('NuevaCotizacion — a quién se le cotiza', () => {
+  function contacto(over: Partial<ContactoCliente> = {}): ContactoCliente {
+    return {
+      IdContacto: 10, IdCliente: 1, Nombre: 'Rosy', Puesto: 'COMPRAS',
+      Telefono: null, Celular: null, Email: null, Notas: null,
+      EsPrincipal: true, Origen: 'MANUAL', Activo: true, FechaCreacion: '2026-01-01',
+      ...over,
+    };
+  }
+
+  async function crearYObtenerPayload(user: ReturnType<typeof userEvent.setup>) {
+    await agregarConceptoManual(user, 'Renta de andamio', '850');
+    await user.click(screen.getByRole('button', { name: 'Crear cotización' }));
+    await waitFor(() => expect(cotizacionesApi.crear).toHaveBeenCalled());
+    return vi.mocked(cotizacionesApi.crear).mock.calls[0][0] as Record<string, unknown>;
+  }
+
+  it('sin contactos no estorba: la cotización sale sin contacto específico', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.crear).mockResolvedValue(cotizacionCreada());
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+    expect(screen.queryByLabelText('Se le cotiza a')).not.toBeInTheDocument();
+
+    expect(await crearYObtenerPayload(user)).toMatchObject({ IdContactoCliente: null });
+  });
+
+  it('con un solo contacto lo toma automáticamente, sin selector', async () => {
+    const user = userEvent.setup();
+    vi.mocked(clientesApi.contactos).mockResolvedValue([contacto()]);
+    vi.mocked(cotizacionesApi.crear).mockResolvedValue(cotizacionCreada());
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+
+    expect(await screen.findByText('Se le cotiza a Rosy.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Se le cotiza a')).not.toBeInTheDocument();
+    expect(await crearYObtenerPayload(user)).toMatchObject({ IdContactoCliente: 10 });
+  });
+
+  it('con varios contactos aparece el selector, con el principal ya elegido', async () => {
+    const user = userEvent.setup();
+    vi.mocked(clientesApi.contactos).mockResolvedValue([
+      contacto(),
+      contacto({ IdContacto: 11, Nombre: 'Luis Omar', Puesto: 'PAGOS', EsPrincipal: false }),
+    ]);
+    vi.mocked(cotizacionesApi.crear).mockResolvedValue(cotizacionCreada());
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+
+    const selector = await screen.findByLabelText('Se le cotiza a');
+    expect(selector).toHaveValue('10');   // el principal
+    expect(await crearYObtenerPayload(user)).toMatchObject({ IdContactoCliente: 10 });
+  });
+
+  it('elegir a otro contacto es lo que se manda', async () => {
+    const user = userEvent.setup();
+    vi.mocked(clientesApi.contactos).mockResolvedValue([
+      contacto(),
+      contacto({ IdContacto: 11, Nombre: 'Luis Omar', Puesto: 'PAGOS', EsPrincipal: false }),
+    ]);
+    vi.mocked(cotizacionesApi.crear).mockResolvedValue(cotizacionCreada());
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+    await user.selectOptions(await screen.findByLabelText('Se le cotiza a'), '11');
+
+    expect(await crearYObtenerPayload(user)).toMatchObject({ IdContactoCliente: 11 });
+  });
+
+  it('cambiar de cliente no arrastra el contacto del anterior', async () => {
+    const user = userEvent.setup();
+    mockRecursos([
+      clienteBase(),
+      clienteBase({ IdCliente: 2, RazonSocial: 'Obras del Norte' }),
+    ]);
+    vi.mocked(clientesApi.contactos).mockResolvedValue([contacto()]);
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+    await screen.findByText('Se le cotiza a Rosy.');
+
+    // El segundo cliente no tiene contactos capturados.
+    vi.mocked(clientesApi.contactos).mockResolvedValue([]);
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    await user.click(await screen.findByText('Obras del Norte'));
+
+    await waitFor(() => expect(clientesApi.contactos).toHaveBeenLastCalledWith(2));
+    expect(screen.queryByText('Se le cotiza a Rosy.')).not.toBeInTheDocument();
+  });
+});
+
 describe('NuevaCotizacion — validaciones', () => {
   it('sin cliente no deja guardar', async () => {
     const user = userEvent.setup();
@@ -153,17 +251,57 @@ describe('NuevaCotizacion — validaciones', () => {
     expect(cotizacionesApi.crear).not.toHaveBeenCalled();
   });
 
-  it('un cliente BLOQUEADO no deja guardar', async () => {
+  // Un cliente bloqueado ya no es un muro: se puede cotizar con PIN de supervisor
+  // (el vendedor con el cliente enfrente pagando en efectivo). Sin PIN, no pasa.
+  it('un cliente BLOQUEADO no deja guardar sin PIN de supervisor', async () => {
     const user = userEvent.setup();
     mockRecursos([clienteBase({ Restriccion: 'BLOQUEO' })]);
     renderPagina();
 
-    await user.click(await screen.findByRole('button', { name: 'Seleccionar cliente…' }));
-    await user.click(await screen.findByText('Constructora Demo'));
+    await seleccionarClienteYSucursal(user);
+    await agregarConceptoManual(user, 'Renta de andamio', '850');
     await user.click(screen.getByRole('button', { name: 'Crear cotización' }));
 
-    expect(await screen.findByText('El cliente está BLOQUEADO (lista negra). No se puede cotizar.')).toBeInTheDocument();
+    expect(await screen.findByText('El cliente está BLOQUEADO: cotizarle requiere PIN de supervisor'))
+      .toBeInTheDocument();
     expect(cotizacionesApi.crear).not.toHaveBeenCalled();
+  });
+
+  // Caso real: el vendedor abrió la pantalla, alguien más bloqueó al cliente, y al
+  // guardar llega el rechazo. Sin abrir el campo del PIN se quedaría sin salida,
+  // con la cotización capturada y sin forma de autorizarla.
+  it('si el servidor avisa que el cliente quedó bloqueado, abre el campo del PIN', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.crear).mockRejectedValue(Object.assign(new Error('bloqueado'), {
+      isAxiosError: true,
+      response: { data: { error: 'ACME está BLOQUEADO. Cotizarle requiere PIN.', codigo: 'CLIENTE_BLOQUEADO' } },
+    }));
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+    await agregarConceptoManual(user, 'Renta de andamio', '850');
+    expect(screen.queryByText('PIN de supervisor', { selector: 'label' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Crear cotización' }));
+
+    expect(await screen.findByText('PIN de supervisor', { selector: 'label' })).toBeInTheDocument();
+    expect(screen.getByText(/Requerido porque el cliente está bloqueado/)).toBeInTheDocument();
+  });
+
+  it('con el PIN capturado, al cliente BLOQUEADO sí se le cotiza', async () => {
+    const user = userEvent.setup();
+    mockRecursos([clienteBase({ Restriccion: 'BLOQUEO' })]);
+    vi.mocked(cotizacionesApi.crear).mockResolvedValue(cotizacionCreada());
+    renderPagina();
+
+    await seleccionarClienteYSucursal(user);
+    await agregarConceptoManual(user, 'Renta de andamio', '850');
+    await user.type(campoPorLabel('PIN de supervisor'), '2468');
+    await user.click(screen.getByRole('button', { name: 'Crear cotización' }));
+
+    await waitFor(() => expect(cotizacionesApi.crear).toHaveBeenCalled());
+    const payload = vi.mocked(cotizacionesApi.crear).mock.calls[0][0] as Record<string, unknown>;
+    expect(payload.PinSupervisor).toBe('2468');
   });
 
   it('sin sucursal no deja guardar', async () => {

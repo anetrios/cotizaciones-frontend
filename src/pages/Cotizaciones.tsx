@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha, estatusVisible } from '../components/ui/UI';
+import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
 import { Paginador } from '../components/ui/Paginador';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -53,7 +53,7 @@ export default function Cotizaciones() {
         'Hecha por': c.Usuario,
         Sucursal: c.Sucursal,
         Fecha: fecha(c.Fecha),
-        Estatus: ETIQUETA_ESTATUS[estatusVisible(c.Estatus, c.Fecha, c.VigenciaDias)],
+        Estatus: ETIQUETA_ESTATUS[c.Estatus],
         Moneda: c.Moneda,
         Total: c.Total,
       }));
@@ -89,7 +89,6 @@ export default function Cotizaciones() {
           <option value="PENDIENTE">Pendiente de respuesta</option>
           <option value="CONCRETADA">Concretada</option>
           <option value="NO_CONCRETADA">No concretada</option>
-          <option value="VENCIDA">Vencida</option>
         </select>
         <select className="select" style={{ maxWidth: 200 }} value={idUsuario} onChange={(e) => setIdUsuario(e.target.value)}>
           <option value="">Todas las personas</option>
@@ -122,7 +121,7 @@ export default function Cotizaciones() {
                       {c.UsuarioEmail && <div className="texto-suave" style={{ fontSize: 12 }}>{c.UsuarioEmail}</div>}
                     </td>
                     <td>{fecha(c.Fecha)}</td>
-                    <td><BadgeEstatus e={estatusVisible(c.Estatus, c.Fecha, c.VigenciaDias)} /></td>
+                    <td><BadgeEstatus e={c.Estatus} /></td>
                     <td className="der num" style={{ fontWeight: 600 }}>{moneda(c.Total, c.Moneda)}</td>
                   </tr>
                 ))}

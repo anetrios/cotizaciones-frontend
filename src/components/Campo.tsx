@@ -19,6 +19,19 @@ export interface CampoConfig {
   ancho?: 'completo';
   placeholder?: string;
   ayuda?: string;
+  /**
+   * Tope de caracteres, igual al ancho de la columna en SQL. Sin esto, escribir
+   * de más se guarda y truena en el servidor con "String or binary data would be
+   * truncated", que no dice ni qué campo fue. Solo se pone donde el ancho real es
+   * conocido: un tope adivinado corta texto bueno sin avisar, y eso es peor.
+   */
+  maxLargo?: number;
+  /**
+   * El campo solo se edita siendo ADMIN. No es cosmético: si un VENDEDOR pudiera
+   * moverlo, el servidor lo rechazaría y la pantalla quedaría mostrando un valor
+   * que la base nunca aceptó. Lo que no se puede guardar, no se ofrece.
+   */
+  soloAdmin?: boolean;
   formato?: (valor: unknown, fila: Record<string, unknown>) => ReactNode; // render en tabla
   ocultarEnForm?: (valores: Record<string, unknown>) => boolean;
 }
@@ -46,7 +59,7 @@ export function Campo({ campo, valor, onCambio, opcionesRecurso }: {
     <div className="campo" style={campo.ancho === 'completo' ? { gridColumn: '1 / -1' } : undefined}>
       {etiqueta}
       {campo.tipo === 'textarea' ? (
-        <textarea id={id} className="textarea" value={(valor as string) ?? ''}
+        <textarea id={id} className="textarea" value={(valor as string) ?? ''} maxLength={campo.maxLargo}
           placeholder={campo.placeholder} onChange={(e) => onCambio(e.target.value)} />
       ) : campo.tipo === 'select' ? (
         <select id={id} className="select" value={(valor as string) ?? ''} onChange={(e) => onCambio(e.target.value)}>
@@ -62,6 +75,7 @@ export function Campo({ campo, valor, onCambio, opcionesRecurso }: {
       ) : (
         <input id={id} className="input" type={campo.tipo === 'numero' ? 'number' : campo.tipo === 'fecha' ? 'date' : 'text'}
           value={(valor as string | number) ?? ''} placeholder={campo.placeholder} step="any"
+          maxLength={campo.tipo === 'texto' ? campo.maxLargo : undefined}
           onChange={(e) => onCambio(campo.tipo === 'numero'
             ? (e.target.value === '' ? null : Number(e.target.value))
             : e.target.value)} />

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from './Layout';
 import { Modal } from './ui/Modal';
 import { Spinner, Vacio } from './ui/UI';
@@ -19,6 +20,8 @@ export interface RecursoConfig {
   soloAdmin?: boolean;
   textoEliminar?: string;   // ej: 'desactivar'
   paginado?: boolean;
+  /** Si el recurso tiene pantalla propia, a dónde lleva su renglón. */
+  rutaDetalle?: (fila: Record<string, unknown>) => string;
 }
 
 const POR_PAGINA = 20;
@@ -27,6 +30,7 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
   const api = useMemo(() => crearRecursoApi(config.ruta), [config.ruta]);
   const { mostrar } = useToast();
   const { puedeEscribir, esAdmin } = useAuth();
+  const navigate = useNavigate();
   const puedeEditar = config.soloAdmin ? esAdmin : puedeEscribir;
 
   const [filas, setFilas] = useState<Record<string, unknown>[]>([]);
@@ -40,7 +44,7 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
 
   const opcionesRecurso = useOpcionesRecurso(config.campos);
   const columnas = config.campos.filter((c) => !c.soloForm);
-  const camposForm = config.campos.filter((c) => !c.soloTabla);
+  const camposForm = config.campos.filter((c) => !c.soloTabla && (!c.soloAdmin || esAdmin));
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -112,23 +116,32 @@ export function AdminCRUD({ config }: { config: RecursoConfig }) {
               <thead>
                 <tr>
                   {columnas.map((c) => <th key={c.clave} className={c.tipo === 'numero' ? 'der' : ''}>{c.etiqueta}</th>)}
-                  {puedeEditar && <th className="acciones-col">Acciones</th>}
+                  {(puedeEditar || config.rutaDetalle) && <th className="acciones-col">Acciones</th>}
                 </tr>
               </thead>
               <tbody>
                 {filas.map((fila) => (
-                  <tr key={String(fila[config.idClave])}>
+                  <tr key={String(fila[config.idClave])}
+                    className={config.rutaDetalle ? 'clic' : undefined}
+                    onClick={config.rutaDetalle ? () => navigate(config.rutaDetalle!(fila)) : undefined}>
                     {columnas.map((c) => (
                       <td key={c.clave} className={c.tipo === 'numero' ? 'der num' : ''}>
                         {c.formato ? c.formato(fila[c.clave], fila) : renderCelda(fila[c.clave])}
                       </td>
                     ))}
-                    {puedeEditar && (
-                      <td className="acciones-col">
+                    {(puedeEditar || config.rutaDetalle) && (
+                      // El clic de los botones no debe disparar también el del renglón.
+                      <td className="acciones-col" onClick={(e) => e.stopPropagation()}>
                         <div className="flex gap-8" style={{ justifyContent: 'flex-end' }}>
-                          <button className="btn btn-secundario btn-sm" onClick={() => abrirEditar(fila)}>Editar</button>
-                          <button className="btn btn-fantasma btn-sm" style={{ color: 'var(--error)' }}
-                            onClick={() => eliminar(fila)}>{config.textoEliminar === 'desactivar' ? 'Desactivar' : 'Eliminar'}</button>
+                          {config.rutaDetalle && (
+                            <button className="btn btn-secundario btn-sm"
+                              onClick={() => navigate(config.rutaDetalle!(fila))}>Ver ficha</button>
+                          )}
+                          {puedeEditar && <>
+                            <button className="btn btn-secundario btn-sm" onClick={() => abrirEditar(fila)}>Editar</button>
+                            <button className="btn btn-fantasma btn-sm" style={{ color: 'var(--error)' }}
+                              onClick={() => eliminar(fila)}>{config.textoEliminar === 'desactivar' ? 'Desactivar' : 'Eliminar'}</button>
+                          </>}
                         </div>
                       </td>
                     )}

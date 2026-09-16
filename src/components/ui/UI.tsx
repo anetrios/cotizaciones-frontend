@@ -6,12 +6,6 @@ export function Spinner() { return <div className="spinner-centro"><div classNam
 export function BadgeEstatus({ e }: { e: EstatusCotizacion }) {
   return <span className={`badge badge-${e}`}>{ETIQUETA_ESTATUS[e]}</span>;
 }
-/** Vencida se calcula en el frontend: ENVIADA/PENDIENTE cuya vigencia ya pasó se ve como VENCIDA, sin depender del backend. */
-export function estatusVisible(estatus: EstatusCotizacion, fecha: string, vigenciaDias: number): EstatusCotizacion {
-  if (estatus !== 'ENVIADA' && estatus !== 'PENDIENTE') return estatus;
-  const vence = new Date(new Date(fecha).getTime() + vigenciaDias * 86400000);
-  return vence < new Date() ? 'VENCIDA' : estatus;
-}
 export function BadgeTipo({ t }: { t: TipoCotizacion }) {
   return <span className={`badge-tipo ${t}`}>{t === 'RENTA' ? 'Renta' : 'Venta'}</span>;
 }

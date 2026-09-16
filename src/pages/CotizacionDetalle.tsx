@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Modal } from '../components/ui/Modal';
-import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha, estatusVisible } from '../components/ui/UI';
+import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
 import { cotizacionesApi } from '../api/cotizaciones';
@@ -127,7 +127,6 @@ export default function CotizacionDetalle() {
 
   const m = cot.Moneda;
   const esRenta = cot.Tipo === 'RENTA';
-  const estatusMostrado = estatusVisible(cot.Estatus, cot.Fecha, cot.VigenciaDias);
   const puedeDecidir = esAdmin || (puedeEscribir && usuario?.IdUsuario === cot.IdUsuario);
   const notasPorCategoria = cot.notas.reduce<Record<string, string[]>>((acc, n) => {
     (acc[n.Categoria] ??= []).push(n.Texto);
@@ -163,7 +162,7 @@ export default function CotizacionDetalle() {
           <div className="flex gap-12 items-center wrap">
             <BadgeTipo t={cot.Tipo} />
             <span className="texto-suave">Estado:</span>
-            <BadgeEstatus e={estatusMostrado} />
+            <BadgeEstatus e={cot.Estatus} />
             <span className="texto-suave">
               Elaborada por {cot.Usuario} · Sucursal {cot.Sucursal} · Vigencia {cot.VigenciaDias} días
             </span>
