@@ -81,6 +81,8 @@ h1,h2,h3,h4 { font-family: var(--display); font-weight: 700; line-height: 1.15; 
 .campo .req { color: var(--error); }
 .input, .select, .textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--borde-fuerte); border-radius: var(--radio-sm); font-size: 14px; color: var(--texto); background: var(--superficie); transition: border-color .15s, box-shadow .15s; }
 .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--amarillo-osc); box-shadow: 0 0 0 3px rgba(245,179,1,.20); }
+/* Un campo bloqueado se lee, no se edita: fondo apagado y sin cursor de texto. */
+.input:disabled, .select:disabled, .textarea:disabled { background: var(--superficie-2); border-color: var(--borde); color: var(--texto-suave); cursor: not-allowed; }
 .textarea { resize: vertical; min-height: 78px; }
 
 /* Tarjetas */

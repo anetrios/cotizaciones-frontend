@@ -86,6 +86,22 @@
 .nc-tabla td { padding: 8px 6px; border-bottom: 1px solid var(--borde); vertical-align: middle; }
 .nc-tabla input.input { padding: 6px 8px; font-size: 13px; }
 
+/* Los numéricos de esta tabla van sin la flechita nativa. Chrome solo la dibuja
+   al enfocar el campo, y esos ~17px que aparecían de golpe recortaban el segundo
+   dígito de la cantidad justo al seleccionarla: el ancho útil pasaba de 40px a
+   23px. Sin ella el espacio es el mismo en reposo y con foco. Subir y bajar el
+   valor con las flechas del teclado sigue funcionando igual.
+   Solo aquí: en los formularios el campo va a ancho completo y no estorba. */
+.nc-tabla input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
+.nc-tabla input[type="number"]::-webkit-outer-spin-button,
+.nc-tabla input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Piso de ancho para que quepan cuatro dígitos aunque la columna se apriete
+   (cientos de andamios, o una renta de 365 días). En la celda de periodo, que
+   comparte lugar con la unidad —"día(s)"—, es además lo que impide que el texto
+   de al lado comprima el campo. */
+.nc-tabla input[type="number"] { min-width: 56px; }
+
 /* ---- Anticipo ---- */
 .nc-anticipo {
   padding: 12px 14px;

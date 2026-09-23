@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent, type FocusEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Modal } from '../components/ui/Modal';
@@ -17,13 +17,22 @@ interface RenglonForm {
   key: string;
   IdArticuloRenta?: number | null; IdArticuloVenta?: number | null; IdServicio?: number | null;
   CodigoSnapshot: string | null; Descripcion: string;
-  PrecioUnitario: number; Cantidad: number;
-  UnidadCobro: string | null; NumeroPeriodos: number;
-  DescuentoPorcentaje: number;
+  // Vacío es un estado válido mientras se teclea; ver escribirNumero más abajo.
+  PrecioUnitario: number | ''; Cantidad: number | '';
+  UnidadCobro: string | null; NumeroPeriodos: number | '';
+  DescuentoPorcentaje: number | '';
 }
 const ETQ_UNIDAD: Record<string, string> = { DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza' };
 const uid = () => Math.random().toString(36).slice(2, 9);
 const r2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Un renglón traído de un catálogo trae su precio de ahí, y ahí se cambia: en la
+ * cotización se muestra bloqueado para que nadie lo ajuste renglón por renglón.
+ * La línea manual no sale de ningún catálogo, así que esa sí se edita aquí.
+ */
+const vieneDeCatalogo = (r: Pick<RenglonForm, 'IdArticuloRenta' | 'IdArticuloVenta' | 'IdServicio'>) =>
+  !!(r.IdArticuloRenta || r.IdArticuloVenta || r.IdServicio);
 
 export default function NuevaCotizacion() {
   const { id } = useParams<{ id: string }>();
@@ -149,9 +158,11 @@ export default function NuevaCotizacion() {
 
   const totales = useMemo(() => {
     const conImporte = renglones.map((r) => {
-      const per = tipo === 'RENTA' ? (r.NumeroPeriodos || 1) : 1;
-      const bruto = r2(r.Cantidad * per * r.PrecioUnitario);
-      const descLinea = r2(bruto * ((r.DescuentoPorcentaje || 0) / 100));
+      // Un campo a medio teclear vale 0 aquí: el importe se recalcula en cuanto
+      // se escribe el número, sin romper la suma mientras tanto.
+      const per = tipo === 'RENTA' ? (Number(r.NumeroPeriodos) || 1) : 1;
+      const bruto = r2((Number(r.Cantidad) || 0) * per * (Number(r.PrecioUnitario) || 0));
+      const descLinea = r2(bruto * ((Number(r.DescuentoPorcentaje) || 0) / 100));
       return { ...r, Importe: r2(bruto - descLinea) };
     });
     const subtotal = r2(conImporte.reduce((a, r) => a + r.Importe, 0));
@@ -177,6 +188,23 @@ export default function NuevaCotizacion() {
 
   const actualizarRenglon = (key: string, campo: keyof RenglonForm, valor: unknown) =>
     setRenglones((prev) => prev.map((r) => (r.key === key ? { ...r, [campo]: valor } : r)));
+
+  /**
+   * Mientras se teclea, el campo puede quedar vacío. Antes el mínimo se aplicaba
+   * en cada pulsación —Math.max(1, Number(''))— así que al borrar el 1 para poner
+   * otro número el 1 volvía solo y no había forma de escribir encima.
+   */
+  const escribirNumero = (key: string, campo: keyof RenglonForm) =>
+    (e: ChangeEvent<HTMLInputElement>) =>
+      actualizarRenglon(key, campo, e.target.value === '' ? '' : Number(e.target.value));
+
+  /** Al salir del campo se acomoda el valor dentro de sus límites. */
+  const normalizarNumero = (key: string, campo: keyof RenglonForm, min: number, max = Infinity) =>
+    (e: FocusEvent<HTMLInputElement>) => {
+      const v = Number(e.target.value);
+      actualizarRenglon(key, campo,
+        e.target.value === '' || !Number.isFinite(v) ? min : Math.min(max, Math.max(min, v)));
+    };
   const quitarRenglon = (key: string) => setRenglones((prev) => prev.filter((r) => r.key !== key));
 
   const validar = (): string | null => {
@@ -214,9 +242,10 @@ export default function NuevaCotizacion() {
         renglones: renglones.map((r, i) => ({
           Orden: i + 1, IdArticuloRenta: r.IdArticuloRenta ?? null, IdArticuloVenta: r.IdArticuloVenta ?? null,
           IdServicio: r.IdServicio ?? null, CodigoSnapshot: r.CodigoSnapshot, Descripcion: r.Descripcion,
-          PrecioUnitario: r.PrecioUnitario, Cantidad: r.Cantidad,
-          UnidadCobro: r.UnidadCobro, NumeroPeriodos: tipo === 'RENTA' ? r.NumeroPeriodos : 1,
-          DescuentoPorcentaje: r.DescuentoPorcentaje || 0,
+          // Por si se guarda con un campo todavía vacío, sin haber salido de él.
+          PrecioUnitario: Number(r.PrecioUnitario) || 0, Cantidad: Number(r.Cantidad) || 1,
+          UnidadCobro: r.UnidadCobro, NumeroPeriodos: tipo === 'RENTA' ? (Number(r.NumeroPeriodos) || 1) : 1,
+          DescuentoPorcentaje: Number(r.DescuentoPorcentaje) || 0,
         })),
       };
       if (editando) {
@@ -325,8 +354,8 @@ export default function NuevaCotizacion() {
                 <table className="tabla nc-tabla">
                   <thead>
                     <tr>
-                      <th>Descripción</th><th style={{ width: 70 }}>Cant.</th>
-                      {tipo === 'RENTA' && <th style={{ width: 130 }}>Periodo</th>}
+                      <th>Descripción</th><th style={{ width: 84 }}>Cant.</th>
+                      {tipo === 'RENTA' && <th style={{ width: 150 }}>Periodo</th>}
                       <th style={{ width: 110 }}>P. Unit.</th>
                       <th style={{ width: 90 }}>Desc. %</th>
                       <th className="der" style={{ width: 110 }}>Importe</th><th></th>
@@ -340,22 +369,28 @@ export default function NuevaCotizacion() {
                           {r.CodigoSnapshot && <div className="texto-suave" style={{ fontSize: 12 }}>{r.CodigoSnapshot}</div>}
                         </td>
                         <td><input className="input nc-mini" type="number" min={1} value={r.Cantidad}
-                          onChange={(e) => actualizarRenglon(r.key, 'Cantidad', Math.max(1, Number(e.target.value)))} /></td>
+                          onChange={escribirNumero(r.key, 'Cantidad')}
+                          onBlur={normalizarNumero(r.key, 'Cantidad', 1)} /></td>
                         {tipo === 'RENTA' && (
                           <td>
                             {r.IdServicio ? <span className="texto-suave">—</span> : (
                               <div className="flex items-center gap-6">
                                 <input className="input nc-mini" type="number" min={1} value={r.NumeroPeriodos}
-                                  onChange={(e) => actualizarRenglon(r.key, 'NumeroPeriodos', Math.max(1, Number(e.target.value)))} />
+                                  onChange={escribirNumero(r.key, 'NumeroPeriodos')}
+                                  onBlur={normalizarNumero(r.key, 'NumeroPeriodos', 1)} />
                                 <span className="texto-suave" style={{ fontSize: 12 }}>{ETQ_UNIDAD[r.UnidadCobro || ''] || ''}</span>
                               </div>
                             )}
                           </td>
                         )}
                         <td><input className="input nc-mini" style={{ width: 96 }} type="number" min={0} step="any" value={r.PrecioUnitario}
-                          onChange={(e) => actualizarRenglon(r.key, 'PrecioUnitario', Number(e.target.value))} /></td>
+                          disabled={vieneDeCatalogo(r)}
+                          title={vieneDeCatalogo(r) ? 'El precio se edita en el catálogo, no en la cotización' : undefined}
+                          onChange={escribirNumero(r.key, 'PrecioUnitario')}
+                          onBlur={normalizarNumero(r.key, 'PrecioUnitario', 0)} /></td>
                         <td><input className="input nc-mini" type="number" min={0} max={100} step="any" value={r.DescuentoPorcentaje}
-                          onChange={(e) => actualizarRenglon(r.key, 'DescuentoPorcentaje', Math.min(100, Math.max(0, Number(e.target.value))))} /></td>
+                          onChange={escribirNumero(r.key, 'DescuentoPorcentaje')}
+                          onBlur={normalizarNumero(r.key, 'DescuentoPorcentaje', 0, 100)} /></td>
                         <td className="der num" style={{ fontWeight: 600 }}>{moneda(r.Importe, moneda_)}</td>
                         <td><button className="btn btn-fantasma btn-sm" style={{ color: 'var(--error)' }} onClick={() => quitarRenglon(r.key)}>✕</button></td>
                       </tr>
