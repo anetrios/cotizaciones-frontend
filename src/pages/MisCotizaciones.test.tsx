@@ -15,7 +15,7 @@ vi.mock('../api/cotizaciones', () => ({
 function filaBase(overrides: Partial<CotizacionResumen> = {}): CotizacionResumen {
   return {
     IdCotizacion: 1, Folio: 'COT-0001', Tipo: 'RENTA', Estatus: 'ENVIADA',
-    Fecha: new Date().toISOString(), VigenciaDias: 15, Moneda: 'MXN',
+    Fecha: '2026-03-10', VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 1000, DescuentoMonto: 0, IVA: 160, Total: 1160,
     Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: null, Sucursal: 'Torreón',
     ...overrides,

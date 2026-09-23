@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
+import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha, hoyISO } from '../components/ui/UI';
 import { Paginador } from '../components/ui/Paginador';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -60,7 +60,7 @@ export default function Cotizaciones() {
       const hoja = XLSX.utils.json_to_sheet(filas);
       const libro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(libro, hoja, 'Cotizaciones');
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyISO();
       XLSX.writeFile(libro, `cotizaciones_${hoy}.xlsx`);
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setExportando(false); }

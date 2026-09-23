@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { Spinner, Vacio, moneda, fecha as fechaCorta } from '../components/ui/UI';
+import { Spinner, Vacio, moneda, fecha as fechaCorta, hoyISO } from '../components/ui/UI';
 import { Paginador } from '../components/ui/Paginador';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -91,7 +91,7 @@ export default function Incidencias() {
       })));
       const libro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(libro, hoja, 'Incidencias');
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyISO();
       XLSX.writeFile(libro, `incidencias_${hoy}.xlsx`);
     } catch (e) { mostrar(mensajeError(e), 'error'); }
     finally { setExportando(false); }

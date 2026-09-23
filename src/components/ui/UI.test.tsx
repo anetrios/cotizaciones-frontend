@@ -19,10 +19,19 @@ describe('moneda', () => {
 });
 
 describe('fecha', () => {
-  it('formatea una fecha ISO en es-MX', () => {
-    const iso = '2026-03-05T00:00:00.000Z';
-    const esperado = new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    expect(fecha(iso)).toBe(esperado);
+  it('formatea una fecha civil como dd/mm/aaaa', () => {
+    expect(fecha('2026-03-05')).toBe('05/03/2026');
+  });
+
+  // Este es el bug que motivó la función: new Date('2026-03-05T00:00:00.000Z')
+  // en México (UTC-6) cae en el 4 de marzo, y la cotización se veía un día antes.
+  it('no recorre el día aunque venga con medianoche UTC', () => {
+    expect(fecha('2026-03-05T00:00:00.000Z')).toBe('05/03/2026');
+    expect(fecha('2026-01-01T00:00:00.000Z')).toBe('01/01/2026');
+  });
+
+  it('regresa un guion si el texto no trae una fecha', () => {
+    expect(fecha('sin fecha')).toBe('—');
   });
 
   it('regresa un guion para null, undefined o cadena vacía', () => {

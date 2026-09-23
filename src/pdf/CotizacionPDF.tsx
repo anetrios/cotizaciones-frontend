@@ -64,7 +64,17 @@ const s = StyleSheet.create({
 const ETQ_UNIDAD: Record<string, string> = { DIA: 'día(s)', MES: 'mes(es)', EVENTO: 'evento', SECCION: 'sección', PIEZA: 'pieza' };
 const fmt = (v: number | null | undefined, m = 'MXN') =>
   Number(v || 0).toLocaleString('es-MX', { style: 'currency', currency: m, minimumFractionDigits: 2 });
-const fmtFecha = (iso: string) => new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+/**
+ * cot.Fecha es una fecha civil ('YYYY-MM-DD'): sin hora y sin zona. Se arma un
+ * Date con sus componentes en hora local en vez de dejar que new Date(iso) lo
+ * interprete como medianoche UTC, que en México imprimiría el día anterior.
+ */
+const aFechaLocal = (iso: string) => {
+  const p = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return p ? new Date(Number(p[1]), Number(p[2]) - 1, Number(p[3])) : new Date(iso);
+};
+const fmtFechaLarga = (d: Date) => d.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+const fmtFecha = (iso: string) => fmtFechaLarga(aFechaLocal(iso));
 
 function Hazard() {
   return (
@@ -87,7 +97,10 @@ export function CotizacionPDF({ cot, sucursales }: { cot: CotizacionCompleta; su
   const notasPorCat = cot.notas.reduce<Record<string, string[]>>((acc, n) => {
     (acc[n.Categoria] ??= []).push(n.Texto); return acc;
   }, {});
-  const vence = new Date(new Date(cot.Fecha).getTime() + cot.VigenciaDias * 86400000);
+  // Sumar días sobre el Date local (y no milisegundos sobre el instante) mantiene
+  // el vencimiento en la misma fecha civil en que lo contaría quien lee la hoja.
+  const vence = aFechaLocal(cot.Fecha);
+  vence.setDate(vence.getDate() + cot.VigenciaDias);
 
   return (
     <Document title={`Cotización ${cot.Folio}`} author="Mercado de Andamios">
@@ -134,7 +147,7 @@ export function CotizacionPDF({ cot, sucursales }: { cot: CotizacionCompleta; su
           <View style={s.bloque}>
             <Text style={s.bloqueTitulo}>Datos de la cotización</Text>
             <Par e="Fecha" v={fmtFecha(cot.Fecha)} />
-            <Par e="Vigencia" v={`${cot.VigenciaDias} días (al ${fmtFecha(vence.toISOString())})`} />
+            <Par e="Vigencia" v={`${cot.VigenciaDias} días (al ${fmtFechaLarga(vence)})`} />
             <Par e="Sucursal" v={cot.Sucursal} />
             <Par e="Elaboró" v={cot.Usuario} />
             <Par e="Moneda" v={m === 'USD' ? `USD (T.C. ${fmt(cot.TipoCambio, 'MXN')})` : 'Pesos MXN'} />

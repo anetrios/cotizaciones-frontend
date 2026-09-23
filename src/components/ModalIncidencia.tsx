@@ -3,10 +3,9 @@ import { Modal } from './ui/Modal';
 import { useToast } from './ui/Toast';
 import { clientesApi } from '../api/clientes';
 import { mensajeError } from '../api/client';
+import { hoyISO } from './ui/UI';
 import { ETIQUETA_INCIDENCIA, INCIDENCIAS_QUE_BLOQUEAN } from '../types';
 import type { TipoIncidencia } from '../types';
-
-const hoy = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Registra una incidencia del cliente. Cuando el tipo bloquea, se avisa ANTES de
@@ -23,7 +22,7 @@ export function ModalIncidencia({ idCliente, cliente, onCerrar, onGuardado }: {
   const [tipo, setTipo] = useState<TipoIncidencia>('NO_PAGO');
   const [descripcion, setDescripcion] = useState('');
   const [monto, setMonto] = useState('');
-  const [fecha, setFecha] = useState(hoy());
+  const [fecha, setFecha] = useState(hoyISO());
   const [guardando, setGuardando] = useState(false);
 
   const bloquea = INCIDENCIAS_QUE_BLOQUEAN.includes(tipo);

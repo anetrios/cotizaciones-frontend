@@ -17,7 +17,7 @@ vi.mock('../api/meta', () => ({ metaApi: { sucursales: vi.fn() } }));
 function cotizacionBase(overrides: Partial<CotizacionCompleta> = {}): CotizacionCompleta {
   return {
     IdCotizacion: 42, Folio: 'COT-0042', Tipo: 'RENTA', Estatus: 'BORRADOR',
-    Fecha: new Date().toISOString(), VigenciaDias: 15, Moneda: 'MXN',
+    Fecha: '2026-03-10', VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 1000, DescuentoMonto: 0, IVA: 160, Total: 1160,
     Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: 'rocio@x.com', Sucursal: 'Torreón',
     IdCliente: 1, IdContactoCliente: null, IdSucursal: 1, IdUsuario: 7,

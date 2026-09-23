@@ -46,7 +46,7 @@ function usuarioBase(overrides: Partial<UsuarioSesion> = {}): UsuarioSesion {
 function cotizacionCreada(overrides: Partial<CotizacionCompleta> = {}): CotizacionCompleta {
   return {
     IdCotizacion: 99, Folio: 'COT-0099', Tipo: 'RENTA', Estatus: 'BORRADOR',
-    Fecha: new Date().toISOString(), VigenciaDias: 15, Moneda: 'MXN',
+    Fecha: '2026-03-10', VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 850, DescuentoMonto: 0, IVA: 136, Total: 986,
     Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: null, Sucursal: 'Torreón',
     IdCliente: 1, IdContactoCliente: null, IdSucursal: 1, IdUsuario: 7,
