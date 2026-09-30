@@ -21,7 +21,7 @@ function filaBase(overrides: Partial<CotizacionResumen> = {}): CotizacionResumen
     IdCotizacion: 1, Folio: 'COT-0001', Tipo: 'RENTA', Estatus: 'ENVIADA',
     Fecha: '2026-03-10', VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 1000, DescuentoMonto: 0, IVA: 160, Total: 1160,
-    Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: 'rocio@x.com', Sucursal: 'Torreón',
+    Cliente: 'Constructora Demo', IdUsuario: 7, Usuario: 'Rocío', UsuarioEmail: 'rocio@x.com', Sucursal: 'Torreón',
     ...overrides,
   };
 }

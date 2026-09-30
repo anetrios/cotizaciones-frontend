@@ -6,18 +6,20 @@ import MisCotizaciones from './MisCotizaciones';
 import { AuthProvider } from '../context/AuthContext';
 import { ToastProvider } from '../components/ui/Toast';
 import { cotizacionesApi } from '../api/cotizaciones';
+import { metaApi } from '../api/meta';
 import type { CotizacionResumen, UsuarioSesion } from '../types';
 
 vi.mock('../api/cotizaciones', () => ({
   cotizacionesApi: { listar: vi.fn(), cambiarEstatusLote: vi.fn() },
 }));
+vi.mock('../api/meta', () => ({ metaApi: { usuariosActivos: vi.fn() } }));
 
 function filaBase(overrides: Partial<CotizacionResumen> = {}): CotizacionResumen {
   return {
     IdCotizacion: 1, Folio: 'COT-0001', Tipo: 'RENTA', Estatus: 'ENVIADA',
     Fecha: '2026-03-10', VigenciaDias: 15, Moneda: 'MXN',
     Subtotal: 1000, DescuentoMonto: 0, IVA: 160, Total: 1160,
-    Cliente: 'Constructora Demo', Usuario: 'Rocío', UsuarioEmail: null, Sucursal: 'Torreón',
+    Cliente: 'Constructora Demo', IdUsuario: 7, Usuario: 'Rocío', UsuarioEmail: null, Sucursal: 'Torreón',
     ...overrides,
   };
 }
@@ -50,6 +52,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   mockListar([]);
+  vi.mocked(metaApi.usuariosActivos).mockResolvedValue([{ IdUsuario: 7, Nombre: 'Rocío' }, { IdUsuario: 8, Nombre: 'Diana' }]);
 });
 
 describe('MisCotizaciones — carga y filtros', () => {
@@ -177,7 +180,7 @@ describe('MisCotizaciones — cambio masivo a un estatus simple', () => {
     await user.selectOptions(screen.getByDisplayValue('Cambiar estatus a…'), 'PENDIENTE');
     await user.click(screen.getByRole('button', { name: 'Aplicar' }));
 
-    expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith([1], 'PENDIENTE', undefined, undefined, undefined);
+    expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith([1], 'PENDIENTE', undefined, undefined, undefined, undefined);
     expect(await screen.findByText('1 cotización(es) actualizada(s) a Pendiente de respuesta')).toBeInTheDocument();
   });
 });
@@ -201,11 +204,45 @@ describe('MisCotizaciones — No concretada en lote', () => {
     expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
-    expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith([1], 'NO_CONCRETADA', 'COMPETENCIA', '', undefined);
+    expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith([1], 'NO_CONCRETADA', 'COMPETENCIA', '', undefined, undefined);
   });
 });
 
 describe('MisCotizaciones — Concretada en lote (wizard)', () => {
+  it('"Concretada por" llega con quien cotizó; si se cambia en un paso, solo esa cotización va con otra persona', async () => {
+    const user = userEvent.setup();
+    mockListar([
+      filaBase({ IdCotizacion: 1, Folio: 'COT-0001' }),
+      filaBase({ IdCotizacion: 2, Folio: 'COT-0002' }),
+    ]);
+    vi.mocked(cotizacionesApi.cambiarEstatusLote).mockResolvedValue({ actualizadas: [1, 2], fallidas: [] });
+    renderPagina();
+
+    await screen.findByText('COT-0001');
+    await user.click(screen.getAllByRole('checkbox')[0]);
+    await user.selectOptions(screen.getByDisplayValue('Cambiar estatus a…'), 'CONCRETADA');
+    await user.click(screen.getByRole('button', { name: 'Aplicar' }));
+
+    await screen.findByRole('option', { name: 'Diana' });
+    expect(screen.getByLabelText('Concretada por')).toHaveValue('7');
+    await user.type(screen.getByLabelText(/Número de factura o contrato/), 'F-001');
+    await user.selectOptions(screen.getByLabelText('Concretada por'), '8');
+    await user.click(screen.getByRole('button', { name: 'Siguiente →' }));
+
+    // El segundo paso vuelve a llegar con quien cotizó, no arrastra la elección anterior.
+    expect(screen.getByLabelText('Concretada por')).toHaveValue('7');
+    await user.type(screen.getByLabelText(/Número de factura o contrato/), 'F-002');
+    await user.click(screen.getByRole('button', { name: 'Revisar →' }));
+
+    const modal = (await screen.findByText('Revisión antes de confirmar')).closest('.modal') as HTMLElement;
+    expect(within(modal).getByText('COT-0001').closest('li')?.textContent).toContain('concretada por Diana');
+    expect(within(modal).getByText('COT-0002').closest('li')?.textContent).not.toContain('concretada por');
+
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+    expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith(
+      [1, 2], 'CONCRETADA', undefined, undefined, { 1: 'F-001', 2: 'F-002' }, { 1: 8, 2: 7 });
+  });
+
   it('pide la factura de cada cotización paso a paso y termina en una revisión antes de confirmar', async () => {
     const user = userEvent.setup();
     mockListar([
@@ -240,7 +277,7 @@ describe('MisCotizaciones — Concretada en lote (wizard)', () => {
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
     expect(cotizacionesApi.cambiarEstatusLote).toHaveBeenCalledWith(
-      [1, 2], 'CONCRETADA', undefined, undefined, { 1: 'F-001', 2: 'F-002' });
+      [1, 2], 'CONCRETADA', undefined, undefined, { 1: 'F-001', 2: 'F-002' }, { 1: 7, 2: 7 });
   });
 
   it('"Anterior" regresa al paso previo conservando lo ya capturado', async () => {

@@ -12,7 +12,7 @@ import type { CotizacionCompleta, UsuarioSesion } from '../types';
 vi.mock('../api/cotizaciones', () => ({
   cotizacionesApi: { obtener: vi.fn(), cambiarEstatus: vi.fn(), eliminar: vi.fn() },
 }));
-vi.mock('../api/meta', () => ({ metaApi: { sucursales: vi.fn() } }));
+vi.mock('../api/meta', () => ({ metaApi: { sucursales: vi.fn(), usuariosActivos: vi.fn() } }));
 
 function cotizacionBase(overrides: Partial<CotizacionCompleta> = {}): CotizacionCompleta {
   return {
@@ -28,6 +28,7 @@ function cotizacionBase(overrides: Partial<CotizacionCompleta> = {}): Cotizacion
     ClienteComercial: null, ClienteRFC: null, ClienteContacto: null,
     ClienteTelefono: null, ClienteEmail: null, ClienteDireccion: null, SucursalDireccion: null,
     MotivoNoConcrecion: null, MotivoNoConcrecionDetalle: null, NumeroFactura: null,
+    IdUsuarioConcreto: null, UsuarioConcreto: null,
     renglones: [{
       IdRenglon: 1, Orden: 1, CodigoSnapshot: 'AND-1', Descripcion: 'Andamio 6m',
       PrecioUnitario: 1000, Cantidad: 1, UnidadCobro: 'DIA', NumeroPeriodos: 1,
@@ -63,6 +64,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
   vi.mocked(metaApi.sucursales).mockResolvedValue([]);
+  vi.mocked(metaApi.usuariosActivos).mockResolvedValue([{ IdUsuario: 7, Nombre: 'Rocío' }, { IdUsuario: 8, Nombre: 'Diana' }]);
 });
 
 /** Hay dos botones "Editar": el de editar la cotización completa y el de editar solo la factura. */
@@ -87,7 +89,7 @@ describe('CotizacionDetalle — Borrador', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Marcar enviada' }));
 
-    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'ENVIADA', undefined, undefined, undefined);
+    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'ENVIADA', undefined, undefined, undefined, undefined);
     expect(await screen.findByText('Enviada')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: 'Concretada' })).toBeInTheDocument();
     expect(await screen.findByText('Estatus actualizado')).toBeInTheDocument();
@@ -117,7 +119,7 @@ describe('CotizacionDetalle — marcar Concretada', () => {
     expect(screen.getByRole('button', { name: 'Confirmar' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
-    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'CONCRETADA', undefined, undefined, 'F-2026-0134');
+    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'CONCRETADA', undefined, undefined, 'F-2026-0134', 7);
     await waitFor(() => expect(botonEditarFactura()).toBeInTheDocument());
     expect(botonEditarFactura().closest('span')?.textContent).toContain('Número de factura: F-2026-0134');
   });
@@ -140,8 +142,56 @@ describe('CotizacionDetalle — marcar Concretada', () => {
     await user.type(input, 'F-NUEVA');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
-    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'CONCRETADA', undefined, undefined, 'F-NUEVA');
+    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'CONCRETADA', undefined, undefined, 'F-NUEVA', 7);
     await waitFor(() => expect(botonEditarFactura().closest('span')?.textContent).toContain('Número de factura: F-NUEVA'));
+  });
+
+  it('"Concretada por" llega con quien cotizó y se puede cambiar a otra persona', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.obtener).mockResolvedValue(cotizacionBase({ Estatus: 'ENVIADA' }));
+    vi.mocked(cotizacionesApi.cambiarEstatus).mockResolvedValue(cotizacionBase({
+      Estatus: 'CONCRETADA', NumeroFactura: 'F-1', IdUsuarioConcreto: 8, UsuarioConcreto: 'Diana',
+    }));
+    renderDetalle(usuarioBase());
+
+    await user.click(await screen.findByRole('button', { name: 'Concretada' }));
+    await screen.findByRole('option', { name: 'Diana' });
+    const select = screen.getByLabelText('Concretada por');
+    expect(select).toHaveValue('7');
+    expect(screen.getByRole('option', { name: 'Rocío (quien cotizó)' })).toBeInTheDocument();
+    expect(screen.queryByText(/se le contará a esta persona/)).not.toBeInTheDocument();
+
+    await user.selectOptions(select, '8');
+    expect(screen.getByText(/se le contará a esta persona/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/Número de factura o contrato/), 'F-1');
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'CONCRETADA', undefined, undefined, 'F-1', 8);
+    await waitFor(() => expect(botonEditarFactura().closest('span')?.textContent).toContain('Concretada por Diana'));
+  });
+
+  it('al editar una ya concretada por otra persona, el select llega con esa persona', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.obtener).mockResolvedValue(cotizacionBase({
+      Estatus: 'CONCRETADA', NumeroFactura: 'F-1', IdUsuarioConcreto: 8, UsuarioConcreto: 'Diana',
+    }));
+    renderDetalle(usuarioBase());
+
+    await waitFor(() => expect(botonEditarFactura()).toBeInTheDocument());
+    await user.click(botonEditarFactura());
+    await screen.findByRole('option', { name: 'Diana' });
+    expect(screen.getByLabelText('Concretada por')).toHaveValue('8');
+  });
+
+  it('si quien cotizó ya no está activo, igual aparece y queda preseleccionado', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cotizacionesApi.obtener).mockResolvedValue(cotizacionBase({ Estatus: 'ENVIADA', IdUsuario: 3, Usuario: 'Exvendedora' }));
+    renderDetalle(usuarioBase({ Rol: 'ADMIN' }));
+
+    await user.click(await screen.findByRole('button', { name: 'Concretada' }));
+    await screen.findByRole('option', { name: 'Diana' });
+    expect(screen.getByLabelText('Concretada por')).toHaveValue('3');
+    expect(screen.getByRole('option', { name: 'Exvendedora (quien cotizó)' })).toBeInTheDocument();
   });
 });
 
@@ -182,7 +232,7 @@ describe('CotizacionDetalle — marcar No concretada', () => {
     await user.selectOptions(screen.getByLabelText('Motivo'), 'PRECIO');
     await user.click(screen.getByRole('button', { name: 'Confirmar' }));
 
-    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'NO_CONCRETADA', 'PRECIO', '', undefined);
+    expect(cotizacionesApi.cambiarEstatus).toHaveBeenCalledWith(42, 'NO_CONCRETADA', 'PRECIO', '', undefined, undefined);
     expect(await screen.findByText('Motivo: Precio')).toBeInTheDocument();
   });
 });

@@ -80,6 +80,7 @@ export default function Cotizaciones() {
         Sucursal: c.Sucursal,
         Fecha: fecha(c.Fecha),
         Estatus: ETIQUETA_ESTATUS[c.Estatus],
+        'Concretada por': c.ConcretadaPor ?? '',
         Moneda: c.Moneda,
         Total: c.Total,
       }));

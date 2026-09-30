@@ -57,6 +57,7 @@ function cotizacionCreada(overrides: Partial<CotizacionCompleta> = {}): Cotizaci
     ClienteComercial: null, ClienteRFC: null, ClienteContacto: null,
     ClienteTelefono: null, ClienteEmail: null, ClienteDireccion: null, SucursalDireccion: null,
     MotivoNoConcrecion: null, MotivoNoConcrecionDetalle: null, NumeroFactura: null,
+    IdUsuarioConcreto: null, UsuarioConcreto: null,
     renglones: [], notas: [],
     ...overrides,
   };

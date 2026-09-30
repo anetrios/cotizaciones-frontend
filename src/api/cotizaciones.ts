@@ -32,15 +32,21 @@ export const cotizacionesApi = {
     await api.delete(`/cotizaciones/${id}`);
   },
   async cambiarEstatus(
-    id: number, Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string, NumeroFactura?: string
+    id: number, Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string, NumeroFactura?: string,
+    IdUsuarioConcreto?: number
   ) {
-    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, { Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, NumeroFactura });
+    const { data } = await api.patch(`/cotizaciones/${id}/estatus`, {
+      Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, NumeroFactura, IdUsuarioConcreto,
+    });
     return data.datos as CotizacionCompleta;
   },
   async cambiarEstatusLote(
-    ids: number[], Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string, Facturas?: Record<number, string>
+    ids: number[], Estatus: string, MotivoNoConcrecion?: string, MotivoNoConcrecionDetalle?: string,
+    Facturas?: Record<number, string>, ConcretadaPor?: Record<number, number>
   ) {
-    const { data } = await api.patch('/cotizaciones/estatus-lote', { ids, Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, Facturas });
+    const { data } = await api.patch('/cotizaciones/estatus-lote', {
+      ids, Estatus, MotivoNoConcrecion, MotivoNoConcrecionDetalle, Facturas, ConcretadaPor,
+    });
     return data.datos as ResultadoCambioLote;
   },
   async dashboard(filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Modal } from '../components/ui/Modal';
+import { SelectConcretadaPor } from '../components/SelectConcretadaPor';
 import { Spinner, BadgeEstatus, BadgeTipo, moneda, fecha } from '../components/ui/UI';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
@@ -49,6 +50,8 @@ export default function CotizacionDetalle() {
   const [detalleNoConcrecion, setDetalleNoConcrecion] = useState('');
   const [modalFactura, setModalFactura] = useState(false);
   const [numeroFacturaInput, setNumeroFacturaInput] = useState('');
+  const [concretadaPor, setConcretadaPor] = useState(0);
+  const [usuariosActivos, setUsuariosActivos] = useState<Array<{ IdUsuario: number; Nombre: string }>>([]);
 
   const cargar = useCallback(async () => {
     if (!id) return;
@@ -93,11 +96,14 @@ export default function CotizacionDetalle() {
     }
   };
 
-  const cambiarEstatus = async (nuevo: EstatusCotizacion, motivo?: MotivoNoConcrecion, detalle?: string, numeroFactura?: string) => {
+  const cambiarEstatus = async (
+    nuevo: EstatusCotizacion, motivo?: MotivoNoConcrecion, detalle?: string, numeroFactura?: string, idUsuarioConcreto?: number
+  ) => {
     if (!cot) return;
     setCambiando(true);
     try {
-      const actualizada = await cotizacionesApi.cambiarEstatus(cot.IdCotizacion, nuevo, motivo, detalle, numeroFactura);
+      const actualizada = await cotizacionesApi.cambiarEstatus(
+        cot.IdCotizacion, nuevo, motivo, detalle, numeroFactura, idUsuarioConcreto);
       setCot({ ...cot, ...actualizada });
       mostrar('Estatus actualizado', 'exito');
     } catch (e) {
@@ -115,10 +121,19 @@ export default function CotizacionDetalle() {
     setModalNoConcrecion(false);
   };
 
-  const abrirModalFactura = () => { setNumeroFacturaInput(cot?.NumeroFactura || ''); setModalFactura(true); };
+  const abrirModalFactura = () => {
+    if (!cot) return;
+    setNumeroFacturaInput(cot.NumeroFactura || '');
+    // Preseleccionada con quien ya la concretó o, si es nueva, con quien cotizó.
+    setConcretadaPor(cot.IdUsuarioConcreto ?? cot.IdUsuario);
+    setModalFactura(true);
+    if (!usuariosActivos.length) {
+      metaApi.usuariosActivos().then(setUsuariosActivos).catch((e) => mostrar(mensajeError(e), 'error'));
+    }
+  };
 
   const confirmarFactura = async () => {
-    await cambiarEstatus('CONCRETADA', undefined, undefined, numeroFacturaInput);
+    await cambiarEstatus('CONCRETADA', undefined, undefined, numeroFacturaInput, concretadaPor);
     setModalFactura(false);
   };
 
@@ -176,6 +191,7 @@ export default function CotizacionDetalle() {
           {cot.Estatus === 'CONCRETADA' && (
             <span className="texto-suave flex items-center gap-6">
               Número de factura: {cot.NumeroFactura || '—'}
+              {cot.UsuarioConcreto && <> · Concretada por {cot.UsuarioConcreto}</>}
               {puedeDecidir && (
                 <button className="btn btn-fantasma btn-sm" style={{ padding: '1px 8px' }} onClick={abrirModalFactura}>
                   Editar
@@ -266,6 +282,8 @@ export default function CotizacionDetalle() {
               onChange={(e) => setNumeroFacturaInput(e.target.value)}
               placeholder="Ej. F-2026-0134" />
           </div>
+          <SelectConcretadaPor id="concretada-por" valor={concretadaPor} onCambiar={setConcretadaPor}
+            usuarios={usuariosActivos} idQuienCotizo={cot.IdUsuario} nombreQuienCotizo={cot.Usuario} />
         </Modal>
       )}
 

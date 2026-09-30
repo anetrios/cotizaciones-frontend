@@ -14,4 +14,9 @@ export const metaApi = {
     const { data } = await api.get('/meta/usuarios');
     return data.datos as Array<{ IdUsuario: number; Nombre: string }>;
   },
+  /** Solo usuarios activos: para "Concretada por". */
+  async usuariosActivos() {
+    const { data } = await api.get('/meta/usuarios', { params: { activos: 1 } });
+    return data.datos as Array<{ IdUsuario: number; Nombre: string }>;
+  },
 };

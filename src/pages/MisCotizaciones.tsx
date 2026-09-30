@@ -6,7 +6,9 @@ import { Spinner, Vacio, BadgeEstatus, BadgeTipo, moneda, fecha } from '../compo
 import { Paginador } from '../components/ui/Paginador';
 import { useToast } from '../components/ui/Toast';
 import { useAuth } from '../context/AuthContext';
+import { SelectConcretadaPor } from '../components/SelectConcretadaPor';
 import { cotizacionesApi } from '../api/cotizaciones';
+import { metaApi } from '../api/meta';
 import { mensajeError } from '../api/client';
 import { ETIQUETA_ESTATUS, ETIQUETA_MOTIVO_NO_CONCRECION } from '../types';
 import type { CotizacionResumen, EstatusCotizacion, MotivoNoConcrecion } from '../types';
@@ -47,6 +49,9 @@ export default function MisCotizaciones() {
   const [modalConcretar, setModalConcretar] = useState(false);
   const [pasoConcretar, setPasoConcretar] = useState(0);
   const [facturasLote, setFacturasLote] = useState<Record<number, string>>({});
+  // "Concretada por" de cada cotización; si no hay entrada, es quien la cotizó.
+  const [concretadasPorLote, setConcretadasPorLote] = useState<Record<number, number>>({});
+  const [usuariosActivos, setUsuariosActivos] = useState<Array<{ IdUsuario: number; Nombre: string }>>([]);
   const [resultado, setResultado] = useState<ResultadoLote | null>(null);
   const { mostrar } = useToast();
   const { usuario, puedeEscribir } = useAuth();
@@ -78,13 +83,19 @@ export default function MisCotizaciones() {
 
   const seleccionArray = filas.filter((f) => seleccionados.has(f.IdCotizacion));
 
-  const ejecutarCambioLote = async (motivoSel?: MotivoNoConcrecion, detalleSel?: string, facturasSel?: Record<number, string>) => {
+  const concretadaPorDe = (c: CotizacionResumen) => concretadasPorLote[c.IdCotizacion] ?? c.IdUsuario;
+
+  const ejecutarCambioLote = async (
+    motivoSel?: MotivoNoConcrecion, detalleSel?: string, facturasSel?: Record<number, string>,
+    concretadasSel?: Record<number, number>
+  ) => {
     if (!estatusLote) return;
     const folios = Object.fromEntries(
       filas.filter((f) => seleccionados.has(f.IdCotizacion)).map((f) => [f.IdCotizacion, f.Folio]));
     setAplicando(true);
     try {
-      const res = await cotizacionesApi.cambiarEstatusLote(Array.from(seleccionados), estatusLote, motivoSel, detalleSel, facturasSel);
+      const res = await cotizacionesApi.cambiarEstatusLote(
+        Array.from(seleccionados), estatusLote, motivoSel, detalleSel, facturasSel, concretadasSel);
       setResultado({ ...res, folios });
       if (res.fallidas.length === 0) {
         mostrar(`${res.actualizadas.length} cotización(es) actualizada(s) a ${ETIQUETA_ESTATUS[estatusLote]}`, 'exito');
@@ -109,7 +120,10 @@ export default function MisCotizaciones() {
       return;
     }
     if (estatusLote === 'CONCRETADA') {
-      setFacturasLote({}); setPasoConcretar(0); setModalConcretar(true);
+      setFacturasLote({}); setConcretadasPorLote({}); setPasoConcretar(0); setModalConcretar(true);
+      if (!usuariosActivos.length) {
+        metaApi.usuariosActivos().then(setUsuariosActivos).catch((e) => mostrar(mensajeError(e), 'error'));
+      }
       return;
     }
     const etiqueta = ETIQUETA_ESTATUS[estatusLote];
@@ -125,7 +139,8 @@ export default function MisCotizaciones() {
   const confirmarConcretarLote = () => {
     const facturas = Object.fromEntries(
       Object.entries(facturasLote).filter(([, v]) => v.trim()));
-    ejecutarCambioLote(undefined, undefined, facturas);
+    const concretadas = Object.fromEntries(seleccionArray.map((c) => [c.IdCotizacion, concretadaPorDe(c)]));
+    ejecutarCambioLote(undefined, undefined, facturas, concretadas);
   };
 
   return (
@@ -300,15 +315,33 @@ export default function MisCotizaciones() {
                 }))}
                 placeholder="Ej. F-2026-0134"
               />
+              <div style={{ marginTop: 12 }}>
+                <SelectConcretadaPor
+                  id="concretada-por-lote"
+                  valor={concretadaPorDe(seleccionArray[pasoConcretar])}
+                  onCambiar={(idU) => setConcretadasPorLote((prev) => ({
+                    ...prev, [seleccionArray[pasoConcretar].IdCotizacion]: idU,
+                  }))}
+                  usuarios={usuariosActivos}
+                  idQuienCotizo={seleccionArray[pasoConcretar].IdUsuario}
+                  nombreQuienCotizo={seleccionArray[pasoConcretar].Usuario}
+                />
+              </div>
             </div>
           ) : (
             <ul style={{ paddingLeft: 18, maxHeight: 360, overflowY: 'auto' }}>
-              {seleccionArray.map((c) => (
-                <li key={c.IdCotizacion} style={{ marginBottom: 6 }}>
-                  <strong>{c.Folio}</strong> · {c.Cliente} · {fecha(c.Fecha)} · {moneda(c.Total, c.Moneda)}
-                  {' '}— {facturasLote[c.IdCotizacion]?.trim() || 'falta capturar'}
-                </li>
-              ))}
+              {seleccionArray.map((c) => {
+                const idConcreto = concretadaPorDe(c);
+                const otraPersona = idConcreto !== c.IdUsuario
+                  ? usuariosActivos.find((u) => u.IdUsuario === idConcreto)?.Nombre : null;
+                return (
+                  <li key={c.IdCotizacion} style={{ marginBottom: 6 }}>
+                    <strong>{c.Folio}</strong> · {c.Cliente} · {fecha(c.Fecha)} · {moneda(c.Total, c.Moneda)}
+                    {' '}— {facturasLote[c.IdCotizacion]?.trim() || 'falta capturar'}
+                    {otraPersona && <> · <strong>concretada por {otraPersona}</strong></>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Modal>

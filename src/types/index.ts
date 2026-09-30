@@ -88,7 +88,9 @@ export interface CotizacionResumen {
   IdCotizacion: number; Folio: string; Tipo: TipoCotizacion; Estatus: EstatusCotizacion;
   Fecha: string; VigenciaDias: number; Moneda: string;
   Subtotal: number; DescuentoMonto: number; IVA: number; Total: number;
-  Cliente: string; Usuario: string; UsuarioEmail: string | null; Sucursal: string;
+  Cliente: string; IdUsuario: number; Usuario: string; UsuarioEmail: string | null; Sucursal: string;
+  /** Solo en CONCRETADA: quien la cerró (quien cotizó, si nadie más). */
+  ConcretadaPor?: string | null;
 }
 
 export interface CotizacionCompleta extends CotizacionResumen {
@@ -103,6 +105,9 @@ export interface CotizacionCompleta extends CotizacionResumen {
   SucursalDireccion: string | null;
   MotivoNoConcrecion: MotivoNoConcrecion | null; MotivoNoConcrecionDetalle: string | null;
   NumeroFactura: string | null;
+  /** "Concretada por" cuando la cerró alguien distinto de quien cotizó; null si fue la misma persona. */
+  IdUsuarioConcreto: number | null;
+  UsuarioConcreto: string | null;
   renglones: Renglon[];
   notas: Array<{ IdCotizacionNota: number; Categoria: string; Texto: string; Orden: number }>;
 }
