@@ -179,3 +179,78 @@ describe('Cotizaciones — exportar a Excel', () => {
     expect(nombreArchivo).toMatch(/^cotizaciones_\d{4}-\d{2}-\d{2}\.xlsx$/);
   });
 });
+
+describe('Cotizaciones — orden por columna', () => {
+  it('entra ordenada por folio descendente (lo más reciente arriba)', async () => {
+    renderPagina();
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenCalledWith(
+      expect.objectContaining({ orden: 'Folio', dir: 'desc' })));
+    expect(await screen.findByText('Sin cotizaciones')).toBeInTheDocument();
+  });
+
+  it('clic en un encabezado ordena por esa columna en el servidor; otro clic invierte el sentido', async () => {
+    const user = userEvent.setup();
+    mockListar([filaBase()]);
+    renderPagina();
+    await screen.findByText('COT-0001');
+
+    await user.click(screen.getByRole('columnheader', { name: /Total/ }));
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orden: 'Total', dir: 'desc', pagina: 1 })));
+    expect(screen.getByRole('columnheader', { name: /Total/ })).toHaveAttribute('aria-sort', 'descending');
+
+    await user.click(screen.getByRole('columnheader', { name: /Total/ }));
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orden: 'Total', dir: 'asc' })));
+  });
+
+  it('las columnas de texto empiezan de la A a la Z', async () => {
+    const user = userEvent.setup();
+    mockListar([filaBase()]);
+    renderPagina();
+    await screen.findByText('COT-0001');
+
+    await user.click(screen.getByRole('columnheader', { name: /Cliente/ }));
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orden: 'Cliente', dir: 'asc' })));
+  });
+});
+
+describe('Cotizaciones — filtro por fecha', () => {
+  it('manda el rango Desde/Hasta tal cual, como texto YYYY-MM-DD', async () => {
+    const user = userEvent.setup();
+    renderPagina();
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenCalledTimes(1));
+
+    await user.type(screen.getByLabelText('Fecha desde'), '2026-09-01');
+    await user.type(screen.getByLabelText('Fecha hasta'), '2026-09-26');
+
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ fechaDesde: '2026-09-01', fechaHasta: '2026-09-26', pagina: 1 })));
+  });
+
+  it('"Quitar fechas" limpia el rango', async () => {
+    const user = userEvent.setup();
+    renderPagina();
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenCalledTimes(1));
+    await user.type(screen.getByLabelText('Fecha desde'), '2026-09-01');
+
+    await user.click(await screen.findByRole('button', { name: 'Quitar fechas' }));
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(
+      expect.objectContaining({ fechaDesde: '', fechaHasta: '' })));
+  });
+
+  it('el Excel se exporta con el mismo orden y rango que la tabla', async () => {
+    const user = userEvent.setup();
+    mockListar([filaBase()]);
+    renderPagina();
+    await screen.findByText('COT-0001');
+    await user.type(screen.getByLabelText('Fecha desde'), '2026-09-01');
+    await user.click(screen.getByRole('columnheader', { name: /Fecha/ }));
+
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }));
+    await waitFor(() => expect(cotizacionesApi.listar).toHaveBeenLastCalledWith(expect.objectContaining({
+      porPagina: 100000, fechaDesde: '2026-09-01', orden: 'Fecha', dir: 'desc',
+    })));
+  });
+});

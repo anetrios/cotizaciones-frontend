@@ -1,5 +1,8 @@
 import api from './client';
-import type { CotizacionResumen, CotizacionCompleta, DashboardData, DashboardDetalle, ResultadoCambioLote } from '../types';
+import type {
+  CotizacionResumen, CotizacionCompleta, DashboardData, DashboardDetalle,
+  FamiliaDashboard, ProductoDashboard, ResultadoCambioLote,
+} from '../types';
 
 export const cotizacionesApi = {
   async parametros() {
@@ -47,5 +50,13 @@ export const cotizacionesApi = {
   async dashboardDetalle(estatus: string, filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
     const { data } = await api.get('/cotizaciones/dashboard/detalle', { params: { estatus, ...filtros } });
     return data.datos as DashboardDetalle;
+  },
+  async dashboardProductos(filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
+    const { data } = await api.get('/cotizaciones/dashboard/productos', { params: filtros });
+    return data.datos as ProductoDashboard[];
+  },
+  async dashboardFamilias(filtros: { fechaDesde?: string; fechaHasta?: string } = {}) {
+    const { data } = await api.get('/cotizaciones/dashboard/familias', { params: filtros });
+    return data.datos as FamiliaDashboard[];
   },
 };

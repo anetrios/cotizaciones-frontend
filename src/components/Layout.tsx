@@ -6,6 +6,7 @@ import './Layout.css';
 interface ItemNav { to: string; etiqueta: string; icono: string; soloAdmin?: boolean; grupo?: string; }
 const NAV: ItemNav[] = [
   { to: '/', etiqueta: 'Dashboard', icono: '◧' },
+  { to: '/dashboard-productos', etiqueta: 'Dashboard de productos', icono: '▥' },
   { to: '/cotizaciones', etiqueta: 'Cotizaciones', icono: '▤' },
   { to: '/mis-cotizaciones', etiqueta: 'Mis cotizaciones', icono: '☆' },
   { to: '/clientes', etiqueta: 'Clientes', icono: '◎', grupo: 'Catálogos' },
@@ -17,7 +18,6 @@ const NAV: ItemNav[] = [
   { to: '/existencias', etiqueta: 'Existencias', icono: '▦', grupo: 'Inventario' },
   { to: '/usuarios', etiqueta: 'Usuarios', icono: '☖', soloAdmin: true, grupo: 'Administración' },
   { to: '/sucursales', etiqueta: 'Sucursales', icono: '⌂', soloAdmin: true, grupo: 'Administración' },
-  { to: '/revision', etiqueta: 'Revisión de clientes', icono: '✎', soloAdmin: true, grupo: 'Administración' },
   { to: '/configuracion', etiqueta: 'Configuración', icono: '⚿', soloAdmin: true, grupo: 'Administración' },
 ];
 

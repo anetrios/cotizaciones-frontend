@@ -12,7 +12,7 @@ import type { DashboardData, EstatusCotizacion, MotivoNoConcrecion } from '../ty
 const COLORES = ['#6B7280', '#D97706', '#2563EB', '#16A34A', '#DC2626', '#7C3AED'];
 const MEDALLAS = ['🥇', '🥈', '🥉'];
 
-type ModoFecha = 'semana' | 'mes' | 'rango';
+export type ModoFecha = 'semana' | 'mes' | 'rango';
 type CampoOrdenUsuario = 'Concretadas' | 'PctConcretadas' | 'MontoConcretado' | 'Monto' | 'Total';
 
 const COLUMNAS_USUARIO: Array<{ campo: CampoOrdenUsuario; etiqueta: string; formato: 'num' | 'moneda' | 'porcentaje' }> = [
@@ -30,7 +30,8 @@ function formatearFecha(d: Date) {
   return `${y}-${m}-${dia}`;
 }
 
-function calcularRango(modo: ModoFecha, rangoInicio: string, rangoFin: string): { fechaDesde?: string; fechaHasta?: string } {
+/** También lo usa el dashboard de productos, para que "esta semana" y "este mes" signifiquen lo mismo en los dos. */
+export function calcularRango(modo: ModoFecha, rangoInicio: string, rangoFin: string): { fechaDesde?: string; fechaHasta?: string } {
   const hoy = new Date();
   if (modo === 'semana') {
     const inicio = new Date(hoy);
@@ -138,20 +139,26 @@ export default function Dashboard() {
         <h3 style={{ marginBottom: 14, fontSize: 16 }}>🏆 Top de cotizadores</h3>
         {topCotizadoras.length ? (
           <div className="flex-col gap-8">
-            {topCotizadoras.map((u, i) => (
-              <div
-                key={u.IdUsuario} className="flex items-center justify-between gap-12"
-                style={{ padding: '10px 14px', background: 'var(--superficie-2)', border: '1px solid var(--borde)', borderRadius: 8 }}
-              >
-                <span className="flex items-center gap-12">
-                  <span style={{ fontSize: 22, lineHeight: 1 }}>{MEDALLAS[i]}</span>
-                  <span style={{ fontWeight: 600 }}>{u.Usuario}</span>
-                </span>
-                <span className="num" style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: 18 }}>
-                  {moneda(u.MontoConcretado)}
-                </span>
-              </div>
-            ))}
+            {topCotizadoras.map((u, i) => {
+              // El primer lugar se distingue: fondo amarillo, borde más grueso y todo un poco más grande.
+              const primero = i === 0;
+              return (
+                <div
+                  key={u.IdUsuario} className="flex items-center justify-between gap-12"
+                  style={primero
+                    ? { padding: '14px 16px', background: 'var(--amarillo-suave)', border: '2px solid var(--amarillo)', borderRadius: 10 }
+                    : { padding: '10px 14px', background: 'var(--superficie-2)', border: '1px solid var(--borde)', borderRadius: 8 }}
+                >
+                  <span className="flex items-center gap-12">
+                    <span style={{ fontSize: primero ? 30 : 22, lineHeight: 1 }}>{MEDALLAS[i]}</span>
+                    <span style={{ fontWeight: primero ? 800 : 600, fontSize: primero ? 18 : undefined }}>{u.Usuario}</span>
+                  </span>
+                  <span className="num" style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: primero ? 24 : 18 }}>
+                    {moneda(u.MontoConcretado)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         ) : <p className="texto-suave">Sin cotizaciones concretadas en el periodo.</p>}
       </div>

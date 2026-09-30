@@ -1,0 +1,29 @@
+/* Dashboard de productos: rankings con barra proporcional. */
+.dp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.dp-titulo { font-size: 16px; margin-bottom: 2px; }
+.dp-subtitulo { font-size: 12px; margin-bottom: 14px; }
+
+.dp-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.dp-rank-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; }
+.dp-rank-item.clic { cursor: pointer; border-radius: 6px; margin: -4px -6px; padding: 4px 6px; transition: background .12s; }
+.dp-rank-item.clic:hover { background: var(--superficie-2); }
+.dp-filtro { gap: 6px; background: var(--amarillo-suave); border: 1px solid var(--amarillo); color: var(--texto); padding: 3px 10px; }
+.dp-filtro-quitar { border: 0; background: transparent; cursor: pointer; font-size: 11px; color: var(--texto-medio); padding: 0 2px; }
+.dp-filtro-quitar:hover { color: var(--texto); }
+.dp-rank-pos { font-family: var(--display); font-weight: 800; font-size: 14px; color: var(--texto-suave); text-align: right; line-height: 20px; }
+.dp-rank-cuerpo { min-width: 0; }
+.dp-rank-valor { font-family: var(--display); font-weight: 800; font-size: 15px; white-space: nowrap; }
+.dp-rank-detalle { font-size: 12px; margin-top: 3px; }
+
+.dp-barra { height: 6px; background: var(--superficie-2); border: 1px solid var(--borde); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+.dp-barra-relleno { height: 100%; background: var(--amarillo); border-radius: 0 3px 3px 0; min-width: 2px; }
+.dp-nombre { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dp-nombre-texto { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dp-codigo { font-size: 12px; white-space: nowrap; }
+/* En la tabla el nombre se lee completo (en los rankings se recorta con "…"). */
+.dp-tabla thead th, .dp-tabla tbody td { padding-left: 10px; padding-right: 10px; }
+.dp-celda-producto { min-width: 240px; }
+.dp-celda-producto .dp-nombre { flex-wrap: wrap; row-gap: 2px; }
+.dp-celda-producto .dp-nombre-texto { white-space: normal; }
+
+@media (max-width: 1024px) { .dp-grid { grid-template-columns: 1fr; } }

@@ -1,10 +1,9 @@
 import api from './client';
 import type {
-  Cliente, ContactoCliente, Incidencia, ExpedienteIncidencias, ResultadoResolver,
-  PendienteRevision, AccionRevision, Restriccion,
+  Cliente, ContactoCliente, Incidencia, ExpedienteIncidencias, ResultadoResolver, Restriccion,
 } from '../types';
 
-/** Expediente del cliente: contactos, incidencias y cola de revisión. */
+/** Expediente del cliente: contactos e incidencias. */
 export const clientesApi = {
   async obtener(idCliente: number) {
     const { data } = await api.get(`/clientes/${idCliente}`);
@@ -76,21 +75,5 @@ export const clientesApi = {
   async resolverIncidencia(idIncidencia: number) {
     const { data } = await api.patch(`/incidencias/${idIncidencia}/resolver`);
     return data.datos as ResultadoResolver;
-  },
-
-  /* ---- Cola de revisión (solo ADMIN) ---- */
-  async revision(soloConCotizaciones: boolean, pagina = 1, porPagina = 20) {
-    const { data } = await api.get('/revision', {
-      params: { resuelto: false, conCotizaciones: soloConCotizaciones ? 1 : 0, pagina, porPagina },
-    });
-    return { datos: data.datos as PendienteRevision[], total: data.total as number };
-  },
-  async resumenRevision() {
-    const { data } = await api.get('/revision/resumen');
-    return data.datos as { Pendientes: number; Prioritarios: number };
-  },
-  async resolverRevision(idRevision: number, payload: { Accion: AccionRevision } & Record<string, unknown>) {
-    const { data } = await api.patch(`/revision/${idRevision}/resolver`, payload);
-    return data.datos as { resuelto: boolean; contactosCreados: number };
   },
 };

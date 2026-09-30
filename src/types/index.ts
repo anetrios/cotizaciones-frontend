@@ -61,18 +61,6 @@ export interface ResultadoResolver {
   cliente: { IdCliente: number; RazonSocial: string } | null;
 }
 
-export type AccionRevision =
-  | 'PERSONA' | 'DOS_PERSONAS' | 'TELEFONO' | 'DOMICILIO' | 'NOTA' | 'BASURA' | 'PREGUNTAR';
-
-export interface PendienteRevision {
-  IdRevision: number; IdCliente: number; Campo: string; ValorOriginal: string | null;
-  Motivo: string; Sugerencia: string | null; Resuelto: boolean; ResueltoPor: string | null;
-  FechaCreacion: string;
-  Cliente: string; Ciudad: string | null; ContactoActual: string | null;
-  TelefonoActual: string | null; EmailActual: string | null; DireccionActual: string | null;
-  Restriccion: Restriccion; Cotizaciones: number;
-}
-
 export interface ArticuloRenta {
   IdArticuloRenta: number; Codigo: string; Descripcion: string; Categoria: string;
   UnidadCobro: 'DIA' | 'MES'; Precio: number; DepositoGarantia: number | null;
@@ -129,6 +117,41 @@ export interface DashboardData {
     IdUsuario: number; Usuario: string; Email: string | null; Total: number; Monto: number;
     Concretadas: number; MontoConcretado: number;
   }>;
+}
+
+/**
+ * Un producto en el periodo. Origen dice de dónde sale: artículo de renta, de
+ * venta, servicio o línea manual (esta última sin IdCatalogo, agrupada por texto).
+ * Importe es el de los renglones: sin IVA ni descuento general.
+ */
+export interface ProductoDashboard {
+  Tipo: TipoCotizacion;
+  Origen: 'RENTA' | 'VENTA' | 'SERVICIO' | 'MANUAL';
+  IdCatalogo: number | null;
+  /** Llave con la que el servidor agrupó la línea manual; null en productos de catálogo. */
+  ClaveManual: string | null;
+  Codigo: string | null;
+  Descripcion: string;
+  /** Primera palabra del nombre, en mayúsculas y singular: "MUELLE", "ANDAMIO". */
+  Familia: string;
+  Cotizaciones: number; Concretadas: number;
+  Cantidad: number; CantidadConcretada: number;
+  Importe: number; ImporteConcretado: number;
+}
+
+/**
+ * Productos juntados por familia. Las métricas las calcula el servidor contando
+ * cotizaciones distintas: no son la suma de las filas de ProductoDashboard.
+ */
+export interface FamiliaDashboard {
+  Tipo: TipoCotizacion;
+  Familia: string;
+  Variantes: number;
+  /** 1 si la familia trae algún servicio de catálogo (flete, maniobra…). */
+  TieneServicio: number;
+  Cotizaciones: number; Concretadas: number;
+  Cantidad: number; CantidadConcretada: number;
+  Importe: number; ImporteConcretado: number;
 }
 
 export interface DetalleEstatusPersona { IdUsuario: number; Usuario: string; Total: number; }

@@ -9,6 +9,7 @@ import {
 
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import DashboardProductos from './pages/DashboardProductos';
 import Cotizaciones from './pages/Cotizaciones';
 import MisCotizaciones from './pages/MisCotizaciones';
 import NuevaCotizacion from './pages/NuevaCotizacion';
@@ -17,7 +18,6 @@ import Existencias from './pages/Existencias';
 import Sucursales from './pages/Sucursales';
 import ClienteDetalle from './pages/ClienteDetalle';
 import Incidencias from './pages/Incidencias';
-import RevisionClientes from './pages/RevisionClientes';
 import Configuracion from './pages/Configuracion';
 
 export default function App() {
@@ -29,6 +29,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
 
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/dashboard-productos" element={<ProtectedRoute><DashboardProductos /></ProtectedRoute>} />
 
             {/* Cotizaciones */}
             <Route path="/cotizaciones" element={<ProtectedRoute><Cotizaciones /></ProtectedRoute>} />
@@ -59,9 +60,6 @@ export default function App() {
             } />
             <Route path="/sucursales" element={
               <ProtectedRoute roles={['ADMIN']}><Sucursales /></ProtectedRoute>
-            } />
-            <Route path="/revision" element={
-              <ProtectedRoute roles={['ADMIN']}><RevisionClientes /></ProtectedRoute>
             } />
             <Route path="/configuracion" element={
               <ProtectedRoute roles={['ADMIN']}><Configuracion /></ProtectedRoute>
